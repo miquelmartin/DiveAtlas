@@ -1,0 +1,18 @@
+{
+  "name": "DiveAtlas",
+  "short_name": "DiveAtlas",
+  "description": "A private, browser-only scuba dive library and map.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f4ef",
+  "theme_color": "#b11f4b",
+  "icons": [
+    {
+      "src": "icons/diveatlas.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
