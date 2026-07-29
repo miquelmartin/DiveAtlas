@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'sha256-HNjOU2rt1GsFc5zDEQXklLEbjDyKexAo5wKONo5tkTc='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org; connect-src 'self' https://*.tile.openstreetmap.org; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+    >
+    <script>
+      (() => {
+        const param = new URLSearchParams(window.location.search).get("scoutTheme");
+        const theme =
+          param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
+    <style>
+      :root {
+        color-scheme: light;
+        --cp-bg: #f7f4ef;
+        --cp-bg-elevated: #fcfbf8;
+        --cp-surface: #ffffff;
+        --cp-surface-soft: #f5f5f5;
+        --cp-border: #dedede;
+        --cp-border-strong: #919191;
+        --cp-text: #242424;
+        --cp-text-muted: #5c5c5c;
+        --cp-text-soft: #6f6f6f;
+        --cp-accent: #b11f4b;
+        --cp-accent-hover: #9a1a41;
+        --cp-accent-soft: rgba(177, 31, 75, 0.08);
+        --cp-accent-fg: #ffffff;
+        --cp-success: #16a34a;
+        --cp-danger: #dc2626;
+        --cp-warning: #f59e0b;
+        --cp-link: #0078d4;
+        --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+        --cp-overlay: rgba(255, 255, 255, 0.8);
+        --cp-panel: rgba(255, 255, 255, 0.86);
+        --cp-panel-strong: rgba(255, 255, 255, 0.96);
+        --cp-sheen: rgba(255, 255, 255, 0.55);
+        --cp-highlight: rgba(177, 31, 75, 0.12);
+      }
+      html[data-theme="dark"] {
+        color-scheme: dark;
+        --cp-bg: #3d3b3a;
+        --cp-bg-elevated: #343231;
+        --cp-surface: #292929;
+        --cp-surface-soft: #2e2e2e;
+        --cp-border: #474747;
+        --cp-border-strong: #5f5f5f;
+        --cp-text: #dedede;
+        --cp-text-muted: #919191;
+        --cp-text-soft: #b0b0b0;
+        --cp-accent: #fd8ea1;
+        --cp-accent-hover: #fb7b91;
+        --cp-accent-soft: rgba(253, 142, 161, 0.14);
+        --cp-accent-fg: #1a1a1a;
+        --cp-success: #4ade80;
+        --cp-danger: #f87171;
+        --cp-warning: #fbbf24;
+        --cp-link: #4da6ff;
+        --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+        --cp-overlay: rgba(41, 41, 41, 0.88);
+        --cp-panel: rgba(41, 41, 41, 0.72);
+        --cp-panel-strong: rgba(41, 41, 41, 0.96);
+        --cp-sheen: rgba(255, 255, 255, 0.04);
+        --cp-highlight: rgba(253, 142, 161, 0.12);
+      }
+    </style>
+    <title>DiveAtlas · Private dive library</title>
+    <meta
+      name="description"
+      content="Explore Shearwater UDDF dive logs privately in your browser."
+    >
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/diveatlas.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="vendor/leaflet.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="vendor/leaflet.js" defer></script>
+    <script type="module" src="src/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#workspace">Skip to workspace</a>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Private by design</p>
+        <h1>DiveAtlas</h1>
+        <p class="tagline">Your dive history, mapped locally in this browser.</p>
+      </div>
+      <nav class="workspace-tabs" aria-label="Workspaces">
+        <button class="tab is-active" type="button" data-workspace="data" aria-controls="data-workspace" aria-selected="true">Data</button>
+        <button class="tab" type="button" data-workspace="view" aria-controls="view-workspace" aria-selected="false">View</button>
+      </nav>
+    </header>
+
+    <main id="workspace">
+      <section id="data-workspace" class="workspace" aria-labelledby="data-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Data workspace</p>
+            <h2 id="data-heading">Build and protect your local library</h2>
+          </div>
+          <p class="privacy-chip">No dive data leaves this device</p>
+        </div>
+
+        <section class="card import-card" aria-labelledby="import-heading">
+          <div class="card-heading">
+            <div>
+              <h3 id="import-heading">Import files</h3>
+              <p>Select hundreds of UDDF files and a coordinate CSV in one operation.</p>
+            </div>
+            <span class="step-badge">01</span>
+          </div>
+          <label id="drop-zone" class="drop-zone" for="source-files">
+            <strong>Choose UDDF and CSV files</strong>
+            <span>or drop them here · files are processed one at a time</span>
+            <input id="source-files" type="file" multiple accept=".uddf,.xml,.csv,text/csv,application/xml,text/xml">
+          </label>
+          <fieldset class="inline-options">
+            <legend>Coordinate table behavior</legend>
+            <label><input type="radio" name="mapping-mode" value="merge" checked> Merge, retaining stored conflicts</label>
+            <label><input type="radio" name="mapping-mode" value="replace"> Replace the coordinate table</label>
+          </fieldset>
+          <div class="button-row">
+            <button id="import-button" class="primary" type="button">Import selected files</button>
+            <button id="cancel-import" type="button" disabled>Cancel after current file</button>
+          </div>
+          <div id="import-progress-wrap" class="progress-wrap" hidden>
+            <div class="progress-label">
+              <span id="import-status">Preparing import…</span>
+              <span id="import-count"></span>
+            </div>
+            <progress id="import-progress" max="1" value="0"></progress>
+          </div>
+          <div id="import-results" class="results" aria-live="polite"></div>
+        </section>
+
+        <section class="summary-grid" aria-label="Library summary">
+          <article class="metric"><span>Dives</span><strong id="dive-count">0</strong></article>
+          <article class="metric"><span>Mapped</span><strong id="mapped-count">0</strong></article>
+          <article class="metric"><span>Unmatched</span><strong id="unmatched-count">0</strong></article>
+          <article class="metric"><span>Coordinates</span><strong id="mapping-count">0</strong></article>
+        </section>
+
+        <section class="card" aria-labelledby="dives-heading">
+          <div class="card-heading">
+            <div><h3 id="dives-heading">Imported dives</h3><p>Search, inspect, and remove dives with their profile samples.</p></div>
+            <span class="step-badge">02</span>
+          </div>
+          <div class="table-toolbar">
+            <label>Search dives <input id="dive-search" type="search" placeholder="Site, location, date, number"></label>
+            <button id="remove-dives" class="danger" type="button" disabled>Remove selected</button>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th scope="col"><input id="select-all-dives" type="checkbox" aria-label="Select all visible dives"></th><th scope="col">Dive</th><th scope="col">Date</th><th scope="col">Location / Site</th><th scope="col">Depth</th><th scope="col">Status</th></tr></thead>
+              <tbody id="dive-table-body"></tbody>
+            </table>
+          </div>
+          <p id="dive-empty" class="empty-state">No dives imported yet.</p>
+        </section>
+
+        <section class="card" aria-labelledby="mapping-heading">
+          <div class="card-heading">
+            <div><h3 id="mapping-heading">Coordinate mappings</h3><p>Location and site matching ignores case and extra whitespace.</p></div>
+            <span class="step-badge">03</span>
+          </div>
+          <div class="table-toolbar">
+            <label>Search mappings <input id="mapping-search" type="search" placeholder="Location or site"></label>
+            <button id="remove-mappings" class="danger" type="button" disabled>Remove selected</button>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th scope="col"><input id="select-all-mappings" type="checkbox" aria-label="Select all visible mappings"></th><th scope="col">Location</th><th scope="col">Site</th><th scope="col">Latitude</th><th scope="col">Longitude</th><th scope="col">Confidence</th></tr></thead>
+              <tbody id="mapping-table-body"></tbody>
+            </table>
+          </div>
+          <p id="mapping-empty" class="empty-state">No coordinate mappings imported yet.</p>
+        </section>
+
+        <div class="two-column">
+          <section class="card" aria-labelledby="unmatched-heading">
+            <h3 id="unmatched-heading">Unmatched sites</h3>
+            <p>Dives remain fully available when a coordinate row is missing.</p>
+            <ul id="unmatched-list" class="plain-list"></ul>
+          </section>
+          <section class="card" aria-labelledby="storage-heading">
+            <h3 id="storage-heading">Storage health</h3>
+            <dl class="details-list">
+              <div><dt>Usage</dt><dd id="storage-usage">Checking…</dd></div>
+              <div><dt>Persistence</dt><dd id="persistence-status">Checking…</dd></div>
+            </dl>
+            <button id="request-persistence" type="button">Request persistent storage</button>
+            <p class="warning-text">Clearing this site's browser data removes the local library. Keep original UDDF files as your source-of-truth archive.</p>
+          </section>
+        </div>
+
+        <section class="card" aria-labelledby="backup-heading">
+          <div class="card-heading">
+            <div><h3 id="backup-heading">Backup and restore</h3><p>Download a versioned copy of normalized dives, profiles, mappings, and import history.</p></div>
+            <span class="step-badge">04</span>
+          </div>
+          <div class="button-row">
+            <button id="download-backup" class="primary" type="button">Download backup</button>
+            <label class="file-button">Choose backup <input id="backup-file" type="file" accept=".json,application/json"></label>
+          </div>
+          <fieldset class="inline-options">
+            <legend>Restore behavior</legend>
+            <label><input type="radio" name="restore-mode" value="merge" checked> Merge without overwriting conflicts</label>
+            <label><input type="radio" name="restore-mode" value="replace"> Replace the entire local library</label>
+          </fieldset>
+          <button id="restore-backup" type="button" disabled>Restore selected backup</button>
+          <p id="backup-status" aria-live="polite"></p>
+        </section>
+
+        <section class="card privacy-note" aria-labelledby="privacy-heading">
+          <h3 id="privacy-heading">Privacy and network disclosure</h3>
+          <p>DiveAtlas has no accounts, analytics, cookies, upload endpoint, or remote dive storage. Imports and backups are processed only on this device. GitHub Pages may log visitor IP addresses. OpenStreetMap's tile servers receive map tile requests and your IP address and may infer the geographic area being viewed. Opening the map never sends dive records or file contents.</p>
+          <a href="PRIVACY.md">Read the full privacy notice</a>
+        </section>
+      </section>
+
+      <section id="view-workspace" class="workspace" aria-labelledby="view-heading" hidden>
+        <div class="section-heading">
+          <div><p class="eyebrow">View workspace</p><h2 id="view-heading">Explore where and how you dived</h2></div>
+          <p id="view-result-count" class="privacy-chip">0 dives</p>
+        </div>
+        <section class="card filters" aria-label="Dive filters">
+          <label>Location <select id="location-filter"><option value="">All locations</option></select></label>
+          <label>Site <select id="site-filter"><option value="">All sites</option></select></label>
+          <label>From <input id="date-from" type="date"></label>
+          <label>To <input id="date-to" type="date"></label>
+          <label>Search <input id="view-search" type="search" placeholder="Dive number or text"></label>
+          <button id="clear-filters" type="button">Clear filters</button>
+        </section>
+        <div class="view-grid">
+          <section class="card map-card" aria-labelledby="map-heading">
+            <div class="card-heading"><div><h3 id="map-heading">Dive map</h3><p>Only matched sites appear on the map; unmatched dives remain in the list.</p></div></div>
+            <div id="map" aria-label="Interactive map of matched dive sites"></div>
+          </section>
+          <section class="card dive-list-card" aria-labelledby="filtered-dives-heading">
+            <h3 id="filtered-dives-heading">Filtered dives</h3>
+            <div id="view-dive-list" class="dive-list"></div>
+          </section>
+        </div>
+        <section class="card detail-card" aria-labelledby="detail-heading">
+          <h3 id="detail-heading">Dive details</h3>
+          <div id="dive-detail" class="dive-detail"><p>Select a dive to inspect its profile.</p></div>
+          <div id="profile-chart" class="profile-chart"></div>
+        </section>
+      </section>
+    </main>
+    <footer>
+      <p>DiveAtlas works locally. Original dive files remain your archive.</p>
+      <p><a href="PRIVACY.md">Privacy</a> · <a href="https://github.com/miquelmartin/DiveAtlas">Source</a></p>
+    </footer>
+  </body>
+</html>

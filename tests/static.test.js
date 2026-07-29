@@ -1,0 +1,40 @@
+import { access, readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const rootFile = (name) => join(process.cwd(), name);
+
+describe("GitHub Pages and offline shell", () => {
+  it("uses project-subpath-safe document links", async () => {
+    const html = await readFile(rootFile("index.html"), "utf8");
+    const references = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((match) => match[1]);
+    expect(references.filter((reference) => reference.startsWith("/"))).toEqual([]);
+    expect(html).toContain('src="src/app.js"');
+    expect(html).not.toMatch(/<script[^>]+https?:/);
+  });
+
+  it("uses relative manifest scope and start URL", async () => {
+    const manifest = JSON.parse(await readFile(rootFile("manifest.webmanifest"), "utf8"));
+    expect(manifest.start_url).toBe("./");
+    expect(manifest.scope).toBe("./");
+  });
+
+  it("caches only relative application assets and every asset exists", async () => {
+    const serviceWorker = await readFile(rootFile("sw.js"), "utf8");
+    const assets = [...serviceWorker.matchAll(/"(\.\/[^"]+)"/g)].map((match) => match[1]);
+    expect(assets.length).toBeGreaterThan(10);
+    for (const asset of assets.filter((item) => item !== "./")) {
+      await expect(access(rootFile(asset.slice(2)))).resolves.toBeUndefined();
+    }
+  });
+
+  it("restricts network connections to self and configured map tiles", async () => {
+    const html = await readFile(rootFile("index.html"), "utf8");
+    expect(html).toContain("connect-src 'self' https://*.tile.openstreetmap.org");
+    expect(html).not.toContain("script-src 'self' 'unsafe-inline'");
+    expect(html).not.toMatch(/<script[^>]+(?:analytics|telemetry)/i);
+    const app = await readFile(rootFile("src/app.js"), "utf8");
+    const startup = app.slice(app.indexOf("async function start()"));
+    expect(startup).not.toContain("initializeMap(elements.map)");
+  });
+});

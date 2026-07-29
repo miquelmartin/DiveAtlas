@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uddf xmlns="http://www.streit.cc/uddf/3.2/" version="3.2.0">
+  <diver>
+    <owner>
+      <equipment>
+        <divecomputer id="computer-1">
+          <manufacturer><name>Shearwater</name></manufacturer>
+          <model>Perdix 2</model>
+          <serialnumber>SYNTHETIC</serialnumber>
+        </divecomputer>
+      </equipment>
+    </owner>
+  </diver>
+  <divesite>
+    <site>
+      <name>Blue Wall</name>
+      <geography><location>Example Island, Test Region</location></geography>
+    </site>
+  </divesite>
+  <decomodel>
+    <buehlmann id="deco-1">
+      <gradientfactorlow>40</gradientfactorlow>
+      <gradientfactorhigh>85</gradientfactorhigh>
+    </buehlmann>
+  </decomodel>
+  <profiledata>
+    <repetitiongroup>
+      <dive id="synthetic-dive-42">
+        <informationbeforedive>
+          <divenumber>42</divenumber>
+          <datetime>2025-06-15T09:30:00Z</datetime>
+          <surfacepressure>1.013</surfacepressure>
+        </informationbeforedive>
+        <samples>
+          <waypoint>
+            <divetime>0</divetime><depth>0</depth><temperature>293.15</temperature>
+            <nodecotime>5940</nodecotime><gradientfactor>0</gradientfactor>
+          </waypoint>
+          <waypoint>
+            <divetime>60</divetime><depth>12.5</depth><temperature>292.15</temperature>
+            <nodecotime>3000</nodecotime><gradientfactor>35</gradientfactor>
+            <cns>2</cns><calculatedpo2>1.1</calculatedpo2><divemode>closedcircuit</divemode>
+          </waypoint>
+          <waypoint>
+            <divetime>120</divetime><depth>24.2</depth><temperature>291.15</temperature>
+            <gradientfactor>62</gradientfactor><cns>4.5</cns><calculatedpo2>1.25</calculatedpo2>
+          </waypoint>
+          <waypoint>
+            <divetime>180</divetime><depth>0.5</depth><temperature>292.15</temperature>
+          </waypoint>
+        </samples>
+      </dive>
+    </repetitiongroup>
+  </profiledata>
+</uddf>
