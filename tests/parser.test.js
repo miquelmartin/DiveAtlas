@@ -13,7 +13,9 @@ describe("UDDF parser", () => {
       await fixture("representative.uddf"),
       "representative.uddf",
     );
-    expect(dive.id).toBe("uddf:synthetic-dive-42");
+    expect(dive.id).toBe(
+      "meta|42|2025-06-15t09%3a30%3a00.000z|example%20island%2c%20test%20region|blue%20wall",
+    );
     expect(dive.number).toBe(42);
     expect(dive.location).toBe("Example Island, Test Region");
     expect(dive.site).toBe("Blue Wall");
@@ -53,7 +55,30 @@ describe("UDDF parser", () => {
       location: "  Red   Sea ",
       site: "THE WALL",
     };
-    expect(stableDiveId(dive)).toBe("meta:7|2024-01-01T10:00:00Z|red sea|the wall");
+    expect(stableDiveId(dive)).toBe(
+      "meta|7|2024-01-01t10%3a00%3a00.000z|red%20sea|the%20wall",
+    );
+  });
+
+  it("scopes a document-local explicit ID with canonical dive metadata", () => {
+    const common = {
+      uddfId: "1",
+      number: 1,
+      dateTime: "2024-01-01T10:00:00Z",
+      location: "Red Sea",
+    };
+    const first = stableDiveId({ ...common, site: "North Wall" });
+    const reexport = stableDiveId({ ...common, uddfId: "7", site: "North Wall" });
+    const second = stableDiveId({
+      ...common,
+      dateTime: "2024-01-02T10:00:00+00:00",
+      site: "South Wall",
+    });
+    expect(first).toBe(reexport);
+    expect(first).not.toBe(second);
+    expect(first).toBe(
+      stableDiveId({ ...common, site: "  NORTH   WALL " }),
+    );
   });
 });
 

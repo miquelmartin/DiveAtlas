@@ -1,5 +1,6 @@
 import { APP_VERSION, BACKUP_FORMAT, BACKUP_VERSION } from "./config.js";
 import { getAll, mergeLibrary, replaceLibrary } from "./db.js";
+import { canonicalizeLibraryIdentities } from "./utils.js";
 
 const REQUIRED_ARRAYS = ["dives", "profiles", "mappings", "imports"];
 
@@ -100,7 +101,7 @@ export function validateBackup(backup) {
 }
 
 export async function restoreBackup(backup, mode, databasePromise) {
-  const data = validateBackup(backup);
+  const data = canonicalizeLibraryIdentities(validateBackup(backup));
   if (mode === "replace") {
     await replaceLibrary(data, databasePromise);
     return {

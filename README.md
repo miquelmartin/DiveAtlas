@@ -27,17 +27,17 @@ npm ci
 npm run check
 ```
 
-Node.js 22 is used in CI. Current Chromium, Firefox, and Safari releases with IndexedDB, Web Crypto, Web Workers, DOMParser, SVG, and ES module support are targeted. Persistent-storage behavior and install prompts vary by browser.
+`npm run check` includes focused Vitest coverage plus real Chrome picker/drop import flows through the strict CSP and service worker. Node.js 22 is used in CI. Current Chromium, Firefox, and Safari releases with IndexedDB, Web Crypto, Web Workers, DOMParser, SVG, and ES module support are targeted. Persistent-storage behavior and install prompts vary by browser.
 
 ## Import workflow
 
-1. Open **Data** and choose any mixture of `.uddf`, `.xml`, and `.csv` files in one picker operation. Drag/drop is also supported.
-2. Choose whether coordinate rows merge into the stored table or replace it.
-3. Start the import. Files are read one at a time, the page yields between files, and cancellation stops before the next file.
+1. Open **Data → Import dives** and choose or drop one or hundreds of `.uddf` files. The selected count and names appear immediately.
+2. Use **Import coordinates** separately to choose or drop one `.csv`, then choose whether rows merge into the stored table or replace it.
+3. Start the relevant import. Dive files are read one at a time, the page yields between files, and cancellation stops before the next file.
 4. Review every file result and any duplicate, invalid, or conflict details. A bad file does not block valid files.
 5. Inspect unmatched sites, then use **View** to filter the library, map matched sites, and inspect profiles.
 
-Exact source reimports are skipped by SHA-256. All dives from one UDDF source are written atomically, and deleting any constituent dive invalidates that source's completion marker so it can be reimported. A different source containing the same normalized dive is skipped when content is identical. Changed content with the same stable identity is retained as a conflict for review; DiveAtlas never silently overwrites the stored dive.
+Exact source reimports are skipped by SHA-256. A global dive identity uses canonical dive number/date/location/site metadata; the document-scoped UDDF ID is retained only as provenance, so unrelated files can reuse local IDs and re-exports can change them safely. Existing v1 browser libraries migrate to these keys atomically. All valid dives from one UDDF source are reconciled and written in one transaction, and deleting any constituent dive invalidates that source's completion marker so it can be reimported. Same-source identity collisions are reported and isolated before storage so unrelated valid dives still import. A different source containing the same normalized dive is skipped when content is identical. Changed content with the same stable identity is retained as a conflict for review; DiveAtlas never silently overwrites the stored dive.
 
 ## Coordinate CSV contract
 
