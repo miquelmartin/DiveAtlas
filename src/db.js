@@ -1,4 +1,9 @@
 import { DB_NAME, DB_VERSION } from "./config.js";
+import {
+  canonicalizeLibraryIdentities,
+  normalizedDivePayload,
+  stableStringify,
+} from "./utils.js";
 
 let defaultConnection;
 
@@ -17,7 +22,7 @@ function transactionDone(transaction) {
   });
 }
 
-function upgrade(database) {
+function createSchema(database) {
   const dives = database.createObjectStore("dives", { keyPath: "id" });
   dives.createIndex("dateTime", "dateTime");
   dives.createIndex("mappingKey", "mappingKey");
@@ -29,13 +34,50 @@ function upgrade(database) {
   database.createObjectStore("settings", { keyPath: "key" });
 }
 
+function migrateV1(transaction) {
+  const stores = {
+    dives: transaction.objectStore("dives"),
+    profiles: transaction.objectStore("profiles"),
+    imports: transaction.objectStore("imports"),
+    settings: transaction.objectStore("settings"),
+  };
+  const loaded = {};
+  const load = (name) => {
+    const request = stores[name].getAll();
+    request.onsuccess = () => {
+      loaded[name] = request.result;
+      if (loaded.dives && loaded.profiles && loaded.imports) migrateRecords();
+    };
+  };
+  const migrateRecords = () => {
+    const migrated = canonicalizeLibraryIdentities({
+      dives: loaded.dives,
+      profiles: loaded.profiles,
+      imports: loaded.imports,
+      mappings: [],
+      settings: [],
+    });
+
+    stores.dives.clear();
+    stores.profiles.clear();
+    migrated.dives.forEach((dive) => stores.dives.put(dive));
+    migrated.profiles.forEach((profile) => stores.profiles.put(profile));
+    migrated.imports.forEach((record) => stores.imports.put(record));
+    migrated.settings.forEach((record) => stores.settings.put(record));
+  };
+  load("dives");
+  load("profiles");
+  load("imports");
+}
+
 export function openDatabase(factory = globalThis.indexedDB, name = DB_NAME) {
   const useDefaultConnection = factory === globalThis.indexedDB && name === DB_NAME;
   if (useDefaultConnection && defaultConnection) return defaultConnection;
   const connection = new Promise((resolve, reject) => {
     const request = factory.open(name, DB_VERSION);
     request.onupgradeneeded = (event) => {
-      if (event.oldVersion === 0) upgrade(request.result);
+      if (event.oldVersion === 0) createSchema(request.result);
+      if (event.oldVersion === 1) migrateV1(request.transaction);
     };
     request.onsuccess = () => {
       request.result.onversionchange = () => request.result.close();
@@ -111,6 +153,63 @@ export async function addDiveSource(
     status: complete ? "complete" : "conflict",
   });
   await transactionDone(transaction);
+}
+
+export async function importDiveSource(
+  records,
+  sourceHash,
+  sourceName,
+  sourceHasConflicts,
+  databasePromise = openDatabase(),
+) {
+  const database = await databasePromise;
+  const transaction = database.transaction(["dives", "profiles", "imports"], "readwrite");
+  const done = transactionDone(transaction);
+  const dives = transaction.objectStore("dives");
+  const profiles = transaction.objectStore("profiles");
+  const conflicts = [];
+  let added = 0;
+  let duplicates = 0;
+
+  for (const record of records) {
+    const existing = await requestResult(dives.get(record.dive.id));
+    if (!existing) {
+      dives.add(record.dive);
+      profiles.add(record.profile);
+      added += 1;
+      continue;
+    }
+
+    let same = existing.contentHash === record.dive.contentHash;
+    if (!same) {
+      const existingProfile = await requestResult(profiles.get(record.dive.id));
+      same =
+        Boolean(existingProfile) &&
+        stableStringify(normalizedDivePayload(existing, existingProfile)) ===
+          stableStringify(normalizedDivePayload(record.dive, record.profile));
+    }
+    if (same) {
+      duplicates += 1;
+      if (existing.contentHash !== record.dive.contentHash) {
+        dives.put({ ...existing, contentHash: record.dive.contentHash });
+      }
+    } else {
+      conflicts.push(
+        `Dive ${record.dive.number ?? record.dive.id} has the same identity but changed content; stored version retained`,
+      );
+    }
+  }
+
+  transaction.objectStore("imports").put({
+    recordId: `source:${sourceHash}`,
+    sourceHash,
+    diveIds: records.map((record) => record.dive.id),
+    sourceName,
+    importedAt: new Date().toISOString(),
+    status: sourceHasConflicts || conflicts.length ? "conflict" : "complete",
+  });
+  await done;
+  return { added, duplicates, conflicts };
 }
 
 export async function removeDives(ids, databasePromise = openDatabase()) {
@@ -197,7 +296,17 @@ export async function mergeLibrary(data, databasePromise = openDatabase()) {
   for (const dive of data.dives) {
     const existing = await requestResult(transaction.objectStore("dives").get(dive.id));
     if (existing) {
-      if (existing.contentHash !== dive.contentHash) {
+      const existingProfile = await requestResult(
+        transaction.objectStore("profiles").get(dive.id),
+      );
+      const incomingProfile = data.profiles.find((item) => item.diveId === dive.id);
+      const same =
+        existing.contentHash === dive.contentHash ||
+        (existingProfile &&
+          incomingProfile &&
+          stableStringify(normalizedDivePayload(existing, existingProfile)) ===
+            stableStringify(normalizedDivePayload(dive, incomingProfile)));
+      if (!same) {
         conflicts.push(`Dive ${dive.number ?? dive.id} differs from the stored dive`);
       }
       continue;

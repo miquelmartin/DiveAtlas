@@ -96,6 +96,11 @@ h3 {
   font-size: 1.125rem;
 }
 
+h4 {
+  margin: 0 0 0.375rem;
+  font-size: 1rem;
+}
+
 .skip-link {
   position: fixed;
   z-index: 2000;
@@ -210,11 +215,26 @@ main {
   padding: clamp(1rem, 3vw, 1.5rem);
 }
 
+.import-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.import-panel {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.625rem;
+  background: var(--cp-bg-elevated);
+}
+
 .drop-zone {
   display: grid;
   place-items: center;
-  min-height: 10rem;
-  margin: 1.25rem 0;
+  min-height: 8rem;
+  margin: 1rem 0 0.5rem;
   padding: 1.5rem;
   border: 2px dashed var(--cp-border-strong);
   border-radius: 0.625rem;
@@ -230,6 +250,13 @@ main {
 .drop-zone.is-dragging {
   border-color: var(--cp-accent);
   background: var(--cp-accent-soft);
+}
+
+.selection-status {
+  min-height: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--cp-text);
+  font-weight: 600;
 }
 
 .drop-zone input,
@@ -542,6 +569,10 @@ footer p {
 }
 
 @media (max-width: 64rem) {
+  .import-grid {
+    grid-template-columns: 1fr;
+  }
+
   .filters {
     grid-template-columns: repeat(3, 1fr);
   }

@@ -1,13 +1,13 @@
 import {
-  addDiveSource,
   applyMappings,
-  getRecord,
   hasSourceHash,
+  importDiveSource,
   openDatabase,
 } from "./db.js";
 import { parseCoordinateCsv, parseUddf } from "./parser.js";
 import {
   mappingKey,
+  normalizedDivePayload,
   sha256Text,
   stableStringify,
 } from "./utils.js";
@@ -42,16 +42,6 @@ export class ImportWorkerClient {
     this.worker.postMessage({ id, operation, buffer, name: file.name }, [buffer]);
     return promise;
   }
-}
-
-function normalizedDivePayload(dive, profile) {
-  const {
-    importedAt: _importedAt,
-    sourceName: _sourceName,
-    contentHash: _contentHash,
-    ...stableDive
-  } = dive;
-  return { dive: stableDive, profile };
 }
 
 export async function importSources(
@@ -107,35 +97,39 @@ export async function importSources(
         let added = 0;
         let duplicates = 0;
         const conflicts = [];
-        const additions = [];
-        const diveIds = [];
+        const sourceCandidates = new Map();
+        const blockedSourceIds = new Set();
         for (const parsed of parsedDives) {
           parsed.dive.mappingKey = mappingKey(parsed.dive.location, parsed.dive.site);
           parsed.dive.contentHash = await sha256Text(
             stableStringify(normalizedDivePayload(parsed.dive, parsed.profile)),
           );
-          diveIds.push(parsed.dive.id);
-          const existing = await getRecord("dives", parsed.dive.id, databasePromise);
-          if (existing) {
-            if (existing.contentHash === parsed.dive.contentHash) duplicates += 1;
-            else {
+          if (blockedSourceIds.has(parsed.dive.id)) continue;
+          const prior = sourceCandidates.get(parsed.dive.id);
+          if (prior) {
+            if (prior.dive.contentHash === parsed.dive.contentHash) {
+              duplicates += 1;
+            } else {
+              sourceCandidates.delete(parsed.dive.id);
+              blockedSourceIds.add(parsed.dive.id);
               conflicts.push(
-                `Dive ${parsed.dive.number ?? parsed.dive.id} has the same identity but changed content; stored version retained`,
+                `Source contains multiple dives with identity ${parsed.dive.id} but different content; all colliding entries were skipped`,
               );
             }
             continue;
           }
-          additions.push(parsed);
-          added += 1;
+          sourceCandidates.set(parsed.dive.id, parsed);
         }
-        await addDiveSource(
-          additions,
+        const stored = await importDiveSource(
+          [...sourceCandidates.values()],
           processed.sourceHash,
           file.name,
-          diveIds,
-          conflicts.length === 0,
+          conflicts.length > 0,
           databasePromise,
         );
+        added += stored.added;
+        duplicates += stored.duplicates;
+        conflicts.push(...stored.conflicts);
         results.push({
           type: conflicts.length || duplicates ? "warning" : "success",
           filename: file.name,

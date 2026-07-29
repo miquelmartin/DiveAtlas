@@ -20,19 +20,29 @@ const state = {
   selectedViewDive: null,
   cancelled: false,
   mapInitialized: false,
+  pendingDiveFiles: [],
+  pendingCoordinateFile: null,
+  diveImporting: false,
+  coordinateImporting: false,
 };
 
 const elements = Object.fromEntries(
   [
-    "source-files",
-    "drop-zone",
-    "import-button",
-    "cancel-import",
-    "import-progress-wrap",
-    "import-progress",
-    "import-status",
-    "import-count",
-    "import-results",
+    "dive-files",
+    "dive-drop-zone",
+    "dive-selection-status",
+    "import-dives",
+    "cancel-dive-import",
+    "dive-progress-wrap",
+    "dive-import-progress",
+    "dive-import-status",
+    "dive-import-count",
+    "dive-import-results",
+    "coordinate-file",
+    "coordinate-drop-zone",
+    "coordinate-selection-status",
+    "import-coordinates",
+    "coordinate-import-results",
     "dive-count",
     "mapped-count",
     "unmatched-count",
@@ -107,8 +117,8 @@ function appendResult(list, type, filename, message) {
   list.append(item);
 }
 
-function renderImportResults(results) {
-  elements["import-results"].replaceChildren();
+function renderImportResults(target, results) {
+  target.replaceChildren();
   const summary = document.createElement("p");
   const failures = results.filter((result) => result.type === "error").length;
   summary.textContent = `${results.length} file(s) processed${failures ? ` · ${failures} failed` : ""}.`;
@@ -118,39 +128,129 @@ function renderImportResults(results) {
     appendResult(list, result.type, result.filename, result.message);
     result.issues.forEach((issue) => appendResult(list, "warning", result.filename, issue));
   });
-  elements["import-results"].append(summary, list);
+  target.append(summary, list);
 }
 
-async function handleImport() {
-  const files = [...elements["source-files"].files];
+function diveSelectionText(files, rejected = 0) {
   if (!files.length) {
-    elements["import-results"].textContent = "Choose at least one UDDF or CSV file.";
+    return rejected
+      ? `${rejected} file(s) ignored. Dive files must end in .uddf.`
+      : "No dive files selected.";
+  }
+  const visibleNames = files.slice(0, 3).map((file) => file.name).join(", ");
+  const additional = files.length > 3 ? ` and ${files.length - 3} more` : "";
+  const ignored = rejected ? ` · ${rejected} non-UDDF file(s) ignored` : "";
+  return `${files.length} dive file${files.length === 1 ? "" : "s"} selected: ${visibleNames}${additional}${ignored}`;
+}
+
+function setDiveFiles(fileList) {
+  const files = [...fileList];
+  state.pendingDiveFiles = files.filter((file) => file.name.toLowerCase().endsWith(".uddf"));
+  elements["dive-selection-status"].textContent = diveSelectionText(
+    state.pendingDiveFiles,
+    files.length - state.pendingDiveFiles.length,
+  );
+  elements["import-dives"].disabled =
+    state.diveImporting || state.pendingDiveFiles.length === 0;
+}
+
+function setCoordinateFiles(fileList) {
+  const files = [...fileList];
+  const csvFiles = files.filter((file) => file.name.toLowerCase().endsWith(".csv"));
+  state.pendingCoordinateFile = csvFiles[0] ?? null;
+  const ignored = files.length - (state.pendingCoordinateFile ? 1 : 0);
+  elements["coordinate-selection-status"].textContent = state.pendingCoordinateFile
+    ? `${state.pendingCoordinateFile.name} selected${
+        ignored ? ` · ${ignored} additional or non-CSV file(s) ignored` : ""
+      }`
+    : files.length
+      ? `${files.length} file(s) ignored. Coordinate files must end in .csv.`
+      : "No coordinate file selected.";
+  elements["import-coordinates"].disabled =
+    state.coordinateImporting || !state.pendingCoordinateFile;
+}
+
+function registerDropZone(zone, onFiles) {
+  ["dragenter", "dragover"].forEach((eventName) =>
+    zone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      zone.classList.add("is-dragging");
+    }),
+  );
+  ["dragleave", "drop"].forEach((eventName) =>
+    zone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      zone.classList.remove("is-dragging");
+    }),
+  );
+  zone.addEventListener("drop", (event) => onFiles(event.dataTransfer.files));
+}
+
+async function handleDiveImport() {
+  const files = [...state.pendingDiveFiles];
+  if (!files.length) {
+    elements["dive-import-results"].textContent = "Choose at least one .uddf dive file.";
     return;
   }
   state.cancelled = false;
-  elements["import-button"].disabled = true;
-  elements["cancel-import"].disabled = false;
-  elements["import-progress-wrap"].hidden = false;
-  elements["import-progress"].max = files.length;
-  const outcome = await importSources(files, {
-    mappingMode: selectedRadio("mapping-mode"),
-    isCancelled: () => state.cancelled,
-    onProgress: (index, name, status = {}) => {
-      elements["import-progress"].value = index;
-      elements["import-count"].textContent = name
-        ? `${Math.min(index + 1, files.length)} / ${files.length}`
-        : `${index} / ${files.length}`;
-      elements["import-status"].textContent = name
-        ? `Processing ${name}`
-        : status.cancelled
-          ? "Import cancelled"
-          : "Import complete";
-    },
-  });
-  renderImportResults(outcome.results);
-  elements["import-button"].disabled = false;
-  elements["cancel-import"].disabled = true;
-  await refreshLibrary();
+  state.diveImporting = true;
+  setDiveFiles(files);
+  elements["dive-files"].disabled = true;
+  elements["cancel-dive-import"].disabled = false;
+  elements["dive-progress-wrap"].hidden = false;
+  elements["dive-import-progress"].max = files.length;
+  try {
+    const outcome = await importSources(files, {
+      isCancelled: () => state.cancelled,
+      onProgress: (index, name, status = {}) => {
+        elements["dive-import-progress"].value = index;
+        elements["dive-import-count"].textContent = name
+          ? `${Math.min(index + 1, files.length)} / ${files.length}`
+          : `${index} / ${files.length}`;
+        elements["dive-import-status"].textContent = name
+          ? `Processing ${name}`
+          : status.cancelled
+            ? "Dive import cancelled"
+            : "Dive import complete";
+      },
+    });
+    renderImportResults(elements["dive-import-results"], outcome.results);
+    await refreshLibrary();
+  } catch (error) {
+    elements["dive-import-results"].textContent =
+      `Dive import failed: ${error instanceof Error ? error.message : String(error)}`;
+  } finally {
+    state.diveImporting = false;
+    elements["dive-files"].disabled = false;
+    elements["cancel-dive-import"].disabled = true;
+    setDiveFiles(files);
+  }
+}
+
+async function handleCoordinateImport() {
+  const file = state.pendingCoordinateFile;
+  if (!file) {
+    elements["coordinate-import-results"].textContent = "Choose one coordinate CSV file.";
+    return;
+  }
+  state.coordinateImporting = true;
+  setCoordinateFiles([file]);
+  elements["coordinate-file"].disabled = true;
+  elements["coordinate-selection-status"].textContent = `Importing ${file.name}…`;
+  try {
+    const outcome = await importSources([file], {
+      mappingMode: selectedRadio("mapping-mode"),
+    });
+    renderImportResults(elements["coordinate-import-results"], outcome.results);
+    await refreshLibrary();
+  } catch (error) {
+    elements["coordinate-import-results"].textContent =
+      `Coordinate import failed: ${error instanceof Error ? error.message : String(error)}`;
+  } finally {
+    state.coordinateImporting = false;
+    elements["coordinate-file"].disabled = false;
+    setCoordinateFiles([file]);
+  }
 }
 
 function filteredDivesForTable() {
@@ -408,26 +508,18 @@ function registerEvents() {
   document.querySelectorAll("[data-workspace]").forEach((button) =>
     button.addEventListener("click", () => setWorkspace(button.dataset.workspace)),
   );
-  elements["import-button"].addEventListener("click", handleImport);
-  elements["cancel-import"].addEventListener("click", () => {
+  elements["dive-files"].addEventListener("change", (event) => setDiveFiles(event.target.files));
+  elements["coordinate-file"].addEventListener("change", (event) =>
+    setCoordinateFiles(event.target.files),
+  );
+  elements["import-dives"].addEventListener("click", handleDiveImport);
+  elements["import-coordinates"].addEventListener("click", handleCoordinateImport);
+  elements["cancel-dive-import"].addEventListener("click", () => {
     state.cancelled = true;
-    elements["import-status"].textContent = "Cancelling after current file…";
+    elements["dive-import-status"].textContent = "Cancelling after current file…";
   });
-  ["dragenter", "dragover"].forEach((eventName) =>
-    elements["drop-zone"].addEventListener(eventName, (event) => {
-      event.preventDefault();
-      elements["drop-zone"].classList.add("is-dragging");
-    }),
-  );
-  ["dragleave", "drop"].forEach((eventName) =>
-    elements["drop-zone"].addEventListener(eventName, (event) => {
-      event.preventDefault();
-      elements["drop-zone"].classList.remove("is-dragging");
-    }),
-  );
-  elements["drop-zone"].addEventListener("drop", (event) => {
-    elements["source-files"].files = event.dataTransfer.files;
-  });
+  registerDropZone(elements["dive-drop-zone"], setDiveFiles);
+  registerDropZone(elements["coordinate-drop-zone"], setCoordinateFiles);
   elements["dive-search"].addEventListener("input", renderDiveTable);
   elements["mapping-search"].addEventListener("input", renderMappingTable);
   elements["select-all-dives"].addEventListener("change", (event) => {
@@ -505,5 +597,5 @@ async function start() {
 }
 
 start().catch((error) => {
-  elements["import-results"].textContent = `DiveAtlas could not start: ${error.message}`;
+  elements["dive-import-results"].textContent = `DiveAtlas could not start: ${error.message}`;
 });

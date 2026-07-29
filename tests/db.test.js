@@ -9,6 +9,7 @@ import {
   openDatabase,
   removeDives,
 } from "../src/db.js";
+import { stableDiveId } from "../src/utils.js";
 
 const databases = [];
 
@@ -98,5 +99,123 @@ describe("IndexedDB persistence", () => {
     const result = await applyMappings([{ ...first, latitude: 11 }], "merge", database);
     expect(result.conflicts).toHaveLength(1);
     expect(await getRecord("mappings", first.key, database)).toEqual(first);
+  });
+
+  it("atomically migrates v1 dive, profile, and import identity references", async () => {
+    const name = `diveatlas-v1-${crypto.randomUUID()}`;
+    const legacyRequest = indexedDB.open(name, 1);
+    const legacy = await new Promise((resolve, reject) => {
+      legacyRequest.onupgradeneeded = () => {
+        const database = legacyRequest.result;
+        const dives = database.createObjectStore("dives", { keyPath: "id" });
+        dives.createIndex("dateTime", "dateTime");
+        dives.createIndex("mappingKey", "mappingKey");
+        database.createObjectStore("profiles", { keyPath: "diveId" });
+        database.createObjectStore("mappings", { keyPath: "key" });
+        const imports = database.createObjectStore("imports", { keyPath: "recordId" });
+        imports.createIndex("sourceHash", "sourceHash", { unique: true });
+        imports.createIndex("diveIds", "diveIds", { multiEntry: true });
+        database.createObjectStore("settings", { keyPath: "key" });
+      };
+      legacyRequest.onsuccess = () => resolve(legacyRequest.result);
+      legacyRequest.onerror = () => reject(legacyRequest.error);
+    });
+    const dive = {
+      ...records("uddf:1").dive,
+      uddfId: "1",
+      dateTime: "2025-01-01T10:00:00Z",
+    };
+    const profile = { diveId: dive.id, samples: [{ time: 0, depth: 0 }] };
+    const transaction = legacy.transaction(["dives", "profiles", "imports"], "readwrite");
+    transaction.objectStore("dives").put(dive);
+    transaction.objectStore("profiles").put(profile);
+    transaction.objectStore("imports").put({
+      recordId: "source:legacy",
+      sourceHash: "legacy",
+      diveIds: [dive.id],
+      status: "complete",
+    });
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+    });
+    legacy.close();
+
+    const connection = openDatabase(indexedDB, name);
+    databases.push({ name, connection });
+    const migratedId = stableDiveId(dive);
+    expect(await getRecord("dives", migratedId, connection)).toEqual({
+      ...dive,
+      id: migratedId,
+    });
+    expect(await getRecord("profiles", migratedId, connection)).toEqual({
+      ...profile,
+      diveId: migratedId,
+    });
+    expect(await getAll("imports", connection)).toEqual([
+      expect.objectContaining({ diveIds: [migratedId] }),
+    ]);
+  });
+
+  it("deduplicates identical v1 re-exports with different local IDs", async () => {
+    const name = `diveatlas-v1-duplicates-${crypto.randomUUID()}`;
+    const request = indexedDB.open(name, 1);
+    const legacy = await new Promise((resolve, reject) => {
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        const dives = database.createObjectStore("dives", { keyPath: "id" });
+        dives.createIndex("dateTime", "dateTime");
+        dives.createIndex("mappingKey", "mappingKey");
+        database.createObjectStore("profiles", { keyPath: "diveId" });
+        database.createObjectStore("mappings", { keyPath: "key" });
+        const imports = database.createObjectStore("imports", { keyPath: "recordId" });
+        imports.createIndex("sourceHash", "sourceHash", { unique: true });
+        imports.createIndex("diveIds", "diveIds", { multiEntry: true });
+        database.createObjectStore("settings", { keyPath: "key" });
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const base = {
+      ...records("uddf:1").dive,
+      uddfId: "1",
+      dateTime: "2025-01-01T10:00:00Z",
+    };
+    const reexport = { ...base, id: "uddf:7", uddfId: "7", contentHash: "different-v1-hash" };
+    const transaction = legacy.transaction(["dives", "profiles", "imports"], "readwrite");
+    transaction.objectStore("dives").put(base);
+    transaction.objectStore("dives").put(reexport);
+    transaction.objectStore("profiles").put({
+      diveId: base.id,
+      samples: [{ time: 0, depth: 0 }],
+    });
+    transaction.objectStore("profiles").put({
+      diveId: reexport.id,
+      samples: [{ time: 0, depth: 0 }],
+    });
+    transaction.objectStore("imports").put({
+      recordId: "source:legacy",
+      sourceHash: "legacy",
+      diveIds: [base.id, reexport.id],
+      status: "complete",
+    });
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+    });
+    legacy.close();
+
+    const connection = openDatabase(indexedDB, name);
+    databases.push({ name, connection });
+    const migratedId = stableDiveId(base);
+    expect(await getAll("dives", connection)).toEqual([
+      expect.objectContaining({ id: migratedId }),
+    ]);
+    expect(await getAll("profiles", connection)).toEqual([
+      expect.objectContaining({ diveId: migratedId }),
+    ]);
+    expect(await getAll("imports", connection)).toEqual([
+      expect.objectContaining({ diveIds: [migratedId] }),
+    ]);
   });
 });

@@ -108,33 +108,53 @@
         <section class="card import-card" aria-labelledby="import-heading">
           <div class="card-heading">
             <div>
-              <h3 id="import-heading">Import files</h3>
-              <p>Select hundreds of UDDF files and a coordinate CSV in one operation.</p>
+              <h3 id="import-heading">Add data</h3>
+              <p>Import dive logs and coordinate mappings through separate, explicit workflows.</p>
             </div>
             <span class="step-badge">01</span>
           </div>
-          <label id="drop-zone" class="drop-zone" for="source-files">
-            <strong>Choose UDDF and CSV files</strong>
-            <span>or drop them here · files are processed one at a time</span>
-            <input id="source-files" type="file" multiple accept=".uddf,.xml,.csv,text/csv,application/xml,text/xml">
-          </label>
-          <fieldset class="inline-options">
-            <legend>Coordinate table behavior</legend>
-            <label><input type="radio" name="mapping-mode" value="merge" checked> Merge, retaining stored conflicts</label>
-            <label><input type="radio" name="mapping-mode" value="replace"> Replace the coordinate table</label>
-          </fieldset>
-          <div class="button-row">
-            <button id="import-button" class="primary" type="button">Import selected files</button>
-            <button id="cancel-import" type="button" disabled>Cancel after current file</button>
+          <div class="import-grid">
+            <section class="import-panel" aria-labelledby="dive-import-heading">
+              <h4 id="dive-import-heading">Import dives</h4>
+              <p>Select up to hundreds of `.uddf` files. DiveAtlas reads them one at a time.</p>
+              <label id="dive-drop-zone" class="drop-zone" for="dive-files">
+                <strong>Choose dive files</strong>
+                <span>or drop `.uddf` files here</span>
+                <input id="dive-files" type="file" multiple accept=".uddf">
+              </label>
+              <p id="dive-selection-status" class="selection-status" aria-live="polite">No dive files selected.</p>
+              <div class="button-row">
+                <button id="import-dives" class="primary" type="button" disabled>Import dives</button>
+                <button id="cancel-dive-import" type="button" disabled>Cancel after current file</button>
+              </div>
+              <div id="dive-progress-wrap" class="progress-wrap" hidden>
+                <div class="progress-label">
+                  <span id="dive-import-status">Preparing dive import…</span>
+                  <span id="dive-import-count"></span>
+                </div>
+                <progress id="dive-import-progress" max="1" value="0"></progress>
+              </div>
+              <div id="dive-import-results" class="results" aria-live="polite"></div>
+            </section>
+
+            <section class="import-panel" aria-labelledby="coordinate-import-heading">
+              <h4 id="coordinate-import-heading">Import coordinates</h4>
+              <p>Select one CSV matching the Location/Site coordinate contract.</p>
+              <label id="coordinate-drop-zone" class="drop-zone" for="coordinate-file">
+                <strong>Choose a coordinate CSV</strong>
+                <span>or drop one `.csv` file here</span>
+                <input id="coordinate-file" type="file" accept=".csv,text/csv">
+              </label>
+              <p id="coordinate-selection-status" class="selection-status" aria-live="polite">No coordinate file selected.</p>
+              <fieldset class="inline-options">
+                <legend>Coordinate table behavior</legend>
+                <label><input type="radio" name="mapping-mode" value="merge" checked> Merge, retaining stored conflicts</label>
+                <label><input type="radio" name="mapping-mode" value="replace"> Replace the coordinate table</label>
+              </fieldset>
+              <button id="import-coordinates" class="primary" type="button" disabled>Import coordinates</button>
+              <div id="coordinate-import-results" class="results" aria-live="polite"></div>
+            </section>
           </div>
-          <div id="import-progress-wrap" class="progress-wrap" hidden>
-            <div class="progress-label">
-              <span id="import-status">Preparing import…</span>
-              <span id="import-count"></span>
-            </div>
-            <progress id="import-progress" max="1" value="0"></progress>
-          </div>
-          <div id="import-results" class="results" aria-live="polite"></div>
         </section>
 
         <section class="summary-grid" aria-label="Library summary">
