@@ -8,7 +8,7 @@ DiveAtlas is a static, privacy-focused dive log for Shearwater-style UDDF 3.2 ex
 - Stable dive identities, exact duplicate skipping, and conflict reporting without silent overwrite
 - Searchable, selectable dive and coordinate tables with atomic dependent-data removal
 - Case-insensitive Location/Site matching, actionable unmatched-site reporting, and merge/replace coordinate controls
-- Interactive Leaflet map, location/site/date/text filters, dive details, and a native SVG depth profile
+- Interactive Leaflet map with pin selection, viewport-driven list filtering, location/site/date/text filters, and overlaid native SVG profiles
 - Versioned JSON backup with validated merge or transactional replace restore
 - Local storage usage and persistence status, installable shell, offline application assets, and GitHub Pages deployment
 
@@ -31,9 +31,9 @@ npm run check
 
 ## Import workflow
 
-1. Open **Data → Import dives** and choose or drop one or hundreds of `.uddf` files. The selected count and names appear immediately.
-2. Use **Import coordinates** separately to choose or drop one `.csv`, then choose whether rows merge into the stored table or replace it.
-3. Start the relevant import. Dive files are read one at a time, the page yields between files, and cancellation stops before the next file.
+1. Open **Data → Import dives** and choose or drop one or hundreds of `.uddf` files. The selected count and names appear immediately and import starts automatically.
+2. Use **Import coordinates** separately to choose or drop one `.csv`; it imports immediately using the selected merge or replace behavior.
+3. Dive files are read one at a time, the page yields between files, and cancellation stops before the next file.
 4. Review every file result and any duplicate, invalid, or conflict details. A bad file does not block valid files.
 5. Inspect unmatched sites, then use **View** to filter the library, map matched sites, and inspect profiles.
 

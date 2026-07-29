@@ -542,6 +542,56 @@ tbody tr:hover {
   stroke-width: 3;
 }
 
+.profile-series-0 {
+  stroke: var(--cp-accent);
+}
+
+.profile-series-1 {
+  stroke: var(--cp-success);
+}
+
+.profile-series-2 {
+  stroke: var(--cp-warning);
+}
+
+.profile-series-3 {
+  stroke: var(--cp-danger);
+}
+
+.profile-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profile-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--cp-text-muted);
+  font-size: 0.8125rem;
+}
+
+.profile-swatch {
+  width: 1.5rem;
+  border-top: 3px solid var(--cp-accent);
+}
+
+.profile-swatch.profile-series-1 {
+  border-color: var(--cp-success);
+}
+
+.profile-swatch.profile-series-2 {
+  border-color: var(--cp-warning);
+}
+
+.profile-swatch.profile-series-3 {
+  border-color: var(--cp-danger);
+}
+
 .profile-cursor {
   stroke: var(--cp-border-strong);
   stroke-dasharray: 4 4;

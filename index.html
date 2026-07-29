@@ -18,55 +18,55 @@
     <style>
       :root {
         color-scheme: light;
-        --cp-bg: #f7f4ef;
-        --cp-bg-elevated: #fcfbf8;
+        --cp-bg: #eef7fb;
+        --cp-bg-elevated: #f7fbfd;
         --cp-surface: #ffffff;
-        --cp-surface-soft: #f5f5f5;
-        --cp-border: #dedede;
-        --cp-border-strong: #919191;
-        --cp-text: #242424;
-        --cp-text-muted: #5c5c5c;
-        --cp-text-soft: #6f6f6f;
-        --cp-accent: #b11f4b;
-        --cp-accent-hover: #9a1a41;
-        --cp-accent-soft: rgba(177, 31, 75, 0.08);
+        --cp-surface-soft: #e4f1f7;
+        --cp-border: #c8dce7;
+        --cp-border-strong: #6b8fa3;
+        --cp-text: #123044;
+        --cp-text-muted: #4c6b7c;
+        --cp-text-soft: #658493;
+        --cp-accent: #087ea4;
+        --cp-accent-hover: #066887;
+        --cp-accent-soft: rgba(8, 126, 164, 0.12);
         --cp-accent-fg: #ffffff;
-        --cp-success: #16a34a;
-        --cp-danger: #dc2626;
-        --cp-warning: #f59e0b;
-        --cp-link: #0078d4;
-        --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
-        --cp-overlay: rgba(255, 255, 255, 0.8);
-        --cp-panel: rgba(255, 255, 255, 0.86);
-        --cp-panel-strong: rgba(255, 255, 255, 0.96);
-        --cp-sheen: rgba(255, 255, 255, 0.55);
-        --cp-highlight: rgba(177, 31, 75, 0.12);
+        --cp-success: #16856b;
+        --cp-danger: #c93756;
+        --cp-warning: #b66a08;
+        --cp-link: #006ea6;
+        --cp-shadow: 0 18px 48px rgba(18, 48, 68, 0.14);
+        --cp-overlay: rgba(238, 247, 251, 0.84);
+        --cp-panel: rgba(255, 255, 255, 0.9);
+        --cp-panel-strong: rgba(255, 255, 255, 0.97);
+        --cp-sheen: rgba(255, 255, 255, 0.64);
+        --cp-highlight: rgba(8, 126, 164, 0.14);
       }
       html[data-theme="dark"] {
         color-scheme: dark;
-        --cp-bg: #3d3b3a;
-        --cp-bg-elevated: #343231;
-        --cp-surface: #292929;
-        --cp-surface-soft: #2e2e2e;
-        --cp-border: #474747;
-        --cp-border-strong: #5f5f5f;
-        --cp-text: #dedede;
-        --cp-text-muted: #919191;
-        --cp-text-soft: #b0b0b0;
-        --cp-accent: #fd8ea1;
-        --cp-accent-hover: #fb7b91;
-        --cp-accent-soft: rgba(253, 142, 161, 0.14);
-        --cp-accent-fg: #1a1a1a;
-        --cp-success: #4ade80;
-        --cp-danger: #f87171;
-        --cp-warning: #fbbf24;
-        --cp-link: #4da6ff;
-        --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
-        --cp-overlay: rgba(41, 41, 41, 0.88);
-        --cp-panel: rgba(41, 41, 41, 0.72);
-        --cp-panel-strong: rgba(41, 41, 41, 0.96);
+        --cp-bg: #071c2a;
+        --cp-bg-elevated: #0a2435;
+        --cp-surface: #102c3d;
+        --cp-surface-soft: #153747;
+        --cp-border: #294b5f;
+        --cp-border-strong: #5d8497;
+        --cp-text: #e3f2f7;
+        --cp-text-muted: #9bb7c5;
+        --cp-text-soft: #bdd1da;
+        --cp-accent: #51c4e8;
+        --cp-accent-hover: #78d4ef;
+        --cp-accent-soft: rgba(81, 196, 232, 0.16);
+        --cp-accent-fg: #04202d;
+        --cp-success: #5dd6b1;
+        --cp-danger: #ff8298;
+        --cp-warning: #f4b95f;
+        --cp-link: #7bd6f3;
+        --cp-shadow: 0 18px 48px rgba(0, 8, 14, 0.38);
+        --cp-overlay: rgba(7, 28, 42, 0.9);
+        --cp-panel: rgba(16, 44, 61, 0.78);
+        --cp-panel-strong: rgba(16, 44, 61, 0.97);
         --cp-sheen: rgba(255, 255, 255, 0.04);
-        --cp-highlight: rgba(253, 142, 161, 0.12);
+        --cp-highlight: rgba(81, 196, 232, 0.16);
       }
     </style>
     <title>DiveAtlas · Private dive library</title>
@@ -116,17 +116,14 @@
           <div class="import-grid">
             <section class="import-panel" aria-labelledby="dive-import-heading">
               <h4 id="dive-import-heading">Import dives</h4>
-              <p>Select up to hundreds of `.uddf` files. DiveAtlas reads them one at a time.</p>
+              <p>Select up to hundreds of `.uddf` files. Import starts immediately and reads them one at a time.</p>
               <label id="dive-drop-zone" class="drop-zone" for="dive-files">
                 <strong>Choose dive files</strong>
                 <span>or drop `.uddf` files here</span>
                 <input id="dive-files" type="file" multiple accept=".uddf">
               </label>
               <p id="dive-selection-status" class="selection-status" aria-live="polite">No dive files selected.</p>
-              <div class="button-row">
-                <button id="import-dives" class="primary" type="button" disabled>Import dives</button>
-                <button id="cancel-dive-import" type="button" disabled>Cancel after current file</button>
-              </div>
+              <button id="cancel-dive-import" type="button" disabled>Cancel after current file</button>
               <div id="dive-progress-wrap" class="progress-wrap" hidden>
                 <div class="progress-label">
                   <span id="dive-import-status">Preparing dive import…</span>
@@ -139,7 +136,7 @@
 
             <section class="import-panel" aria-labelledby="coordinate-import-heading">
               <h4 id="coordinate-import-heading">Import coordinates</h4>
-              <p>Select one CSV matching the Location/Site coordinate contract.</p>
+              <p>Select one CSV matching the Location/Site coordinate contract. Import starts immediately.</p>
               <label id="coordinate-drop-zone" class="drop-zone" for="coordinate-file">
                 <strong>Choose a coordinate CSV</strong>
                 <span>or drop one `.csv` file here</span>
@@ -151,7 +148,6 @@
                 <label><input type="radio" name="mapping-mode" value="merge" checked> Merge, retaining stored conflicts</label>
                 <label><input type="radio" name="mapping-mode" value="replace"> Replace the coordinate table</label>
               </fieldset>
-              <button id="import-coordinates" class="primary" type="button" disabled>Import coordinates</button>
               <div id="coordinate-import-results" class="results" aria-live="polite"></div>
             </section>
           </div>
@@ -254,6 +250,7 @@
           <label>To <input id="date-to" type="date"></label>
           <label>Search <input id="view-search" type="search" placeholder="Dive number or text"></label>
           <button id="clear-filters" type="button">Clear filters</button>
+          <button id="reset-map-filter" type="button" disabled>Reset map view</button>
         </section>
         <div class="view-grid">
           <section class="card map-card" aria-labelledby="map-heading">

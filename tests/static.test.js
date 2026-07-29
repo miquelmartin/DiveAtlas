@@ -30,6 +30,8 @@ describe("GitHub Pages and offline shell", () => {
 
   it("restricts network connections to self and configured map tiles", async () => {
     const html = await readFile(rootFile("index.html"), "utf8");
+    expect(html).toContain("--cp-accent: #087ea4");
+    expect(html).toContain("--cp-bg: #eef7fb");
     expect(html).toContain("connect-src 'self' https://*.tile.openstreetmap.org");
     expect(html).not.toContain("script-src 'self' 'unsafe-inline'");
     expect(html).not.toMatch(/<script[^>]+(?:analytics|telemetry)/i);

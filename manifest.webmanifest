@@ -5,8 +5,8 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f7f4ef",
-  "theme_color": "#b11f4b",
+  "background_color": "#eef7fb",
+  "theme_color": "#087ea4",
   "icons": [
     {
       "src": "icons/diveatlas.svg",
