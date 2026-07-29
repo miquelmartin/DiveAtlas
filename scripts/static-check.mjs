@@ -13,7 +13,7 @@ for (const reference of references.filter(
 }
 
 const workflow = await readFile(new URL(".github/workflows/pages.yml", root), "utf8");
-if (!workflow.includes("actions/deploy-pages@v4")) {
+if (!workflow.includes("actions/deploy-pages@v5")) {
   throw new Error("Pages deployment workflow is incomplete");
 }
 
