@@ -8,7 +8,7 @@ DiveAtlas is a static, privacy-focused dive log for Shearwater-style UDDF 3.2 ex
 - Stable dive identities, exact duplicate skipping, and conflict reporting without silent overwrite
 - Searchable, selectable dive and coordinate tables with atomic dependent-data removal
 - Case-insensitive Location/Site matching, actionable unmatched-site reporting, and merge/replace coordinate controls
-- Interactive Leaflet map with pin selection, viewport-driven list filtering, location/site/date/text filters, and overlaid native SVG profiles
+- Dense exploration dashboard with a clustered satellite map, optional street/seamark layers, viewport and date-range filtering, country-grouped sortable dives, and overlaid native SVG profiles
 - Versioned JSON backup with validated merge or transactional replace restore
 - Local storage usage and persistence status, installable shell, offline application assets, and GitHub Pages deployment
 
@@ -35,7 +35,7 @@ npm run check
 2. Use **Import coordinates** separately to choose or drop one `.csv`; it imports immediately using the selected merge or replace behavior.
 3. Dive files are read one at a time, the page yields between files, and cancellation stops before the next file.
 4. Review every file result and any duplicate, invalid, or conflict details. A bad file does not block valid files.
-5. Inspect unmatched sites, then use **View** to filter the library, map matched sites, and inspect profiles.
+5. Inspect unmatched sites, then use **View** to filter by minimum depth, duration, date range, or map viewport; click dive markers or rows to compare profiles.
 
 Exact source reimports are skipped by SHA-256. A global dive identity uses canonical dive number/date/location/site metadata; the document-scoped UDDF ID is retained only as provenance, so unrelated files can reuse local IDs and re-exports can change them safely. Existing v1 browser libraries migrate to these keys atomically. All valid dives from one UDDF source are reconciled and written in one transaction, and deleting any constituent dive invalidates that source's completion marker so it can be reimported. Same-source identity collisions are reported and isolated before storage so unrelated valid dives still import. A different source containing the same normalized dive is skipped when content is identical. Changed content with the same stable identity is retained as a conflict for review; DiveAtlas never silently overwrites the stored dive.
 
@@ -51,7 +51,7 @@ The header row must contain:
 | `Longitude` | Required number from -180 through 180 |
 | `Confidence` | Optional; blank or absent defaults to `Exact` |
 
-Additional columns are accepted and ignored. Header and field whitespace is trimmed. Matching uses trimmed, whitespace-normalized, case-insensitive `Location + Site` keys while preserving the first row's display text. Duplicate keys are reported. Conflicting coordinates are reported and never silently overwrite the first or stored row.
+Additional columns are accepted and ignored. Header and field whitespace is trimmed. Matching uses trimmed, whitespace-normalized, case-insensitive `Location + Site` keys while preserving the first row's display text. Duplicate keys are reported. Conflicting coordinates are reported and never silently overwrite the first or stored row. DiveAtlas infers an English country name from the coordinates using a locally bundled, approximate country-boundary dataset and stores it with the mapping. Offshore points outside that dataset are labeled `International waters / unassigned`.
 
 ```csv
 Location,Site,Latitude,Longitude,Confidence,Notes
@@ -76,9 +76,9 @@ Restoring a backup into empty storage reproduces normalized dives, profiles, map
 
 DiveAtlas has no analytics, cookies, accounts, backend, upload endpoint, or remote persistence. Imported files, normalized records, and backups are not transmitted. See [PRIVACY.md](PRIVACY.md) for the complete disclosure.
 
-GitHub Pages may log ordinary request information including IP addresses. Opening the map requests tiles from OpenStreetMap; the provider receives the request and IP address and can infer the viewed map area. No dive records are included in tile requests. The tile provider is the only configured third-party runtime network dependency.
+GitHub Pages may log ordinary request information including IP addresses. The map defaults to Esri satellite imagery and can switch to OpenStreetMap streets or add OpenSeaMap seamarks. A displayed layer's provider receives tile requests and IP address and can infer the viewed map area. No dive records are included in tile requests. These configured tile providers are the only third-party runtime network dependencies.
 
-The application shell and locally vendored Leaflet assets are cached by a service worker. Imported data remains in IndexedDB. Previously cached map tiles are not managed by DiveAtlas, so the map can require network access even while the rest of the shell works offline.
+The application shell and locally vendored Leaflet, clustering, and country-coder assets are cached by a service worker. Imported data remains in IndexedDB. Previously cached map tiles are not managed by DiveAtlas, so the map can require network access even while the rest of the shell works offline.
 
 ## GitHub Pages deployment
 
@@ -88,7 +88,7 @@ After merging the first deployment, a repository administrator may need to choos
 
 ## UDDF support and limitations
 
-The parser targets sanitized Shearwater-style UDDF 3.2 documents and handles namespace prefixes by local element name. It imports explicit IDs when available, dive number/date, region/location/site, computer metadata, Buehlmann gradient factors, surface pressure, and waypoint time/depth/temperature/nodeco/GF/CNS/PPO2/mode fields.
+The parser targets sanitized Shearwater-style UDDF 3.2 documents and handles namespace prefixes by local element name. It imports explicit IDs when available, dive number/date, region/location/site, computer metadata, Buehlmann gradient factors, surface pressure, and waypoint time/depth/temperature/nodeco/GF/CNS/PPO2/mode fields. Decompression status is derived only from explicitly reported no-decompression values; older records or exports without that field display an unknown status rather than being guessed.
 
 Unsupported UDDF versions, malformed XML, missing dive profiles, and profiles without valid time/depth samples are reported per file. Manufacturer-specific extensions outside those fields are ignored. DiveAtlas does not edit or export UDDF, synchronize between devices, fetch dive files from cloud services, or cache the global map for fully offline navigation.
 

@@ -147,7 +147,9 @@ describe("IndexedDB persistence", () => {
     expect(await getRecord("dives", migratedId, connection)).toEqual({
       ...dive,
       id: migratedId,
+      decoDive: null,
     });
+
     expect(await getRecord("profiles", migratedId, connection)).toEqual({
       ...profile,
       diveId: migratedId,
@@ -155,6 +157,44 @@ describe("IndexedDB persistence", () => {
     expect(await getAll("imports", connection)).toEqual([
       expect.objectContaining({ diveIds: [migratedId] }),
     ]);
+  });
+
+  it("marks legacy decompression status unknown when source provenance is absent", async () => {
+    const name = `diveatlas-v2-${crypto.randomUUID()}`;
+    const request = indexedDB.open(name, 2);
+    const legacy = await new Promise((resolve, reject) => {
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        const dives = database.createObjectStore("dives", { keyPath: "id" });
+        dives.createIndex("dateTime", "dateTime");
+        dives.createIndex("mappingKey", "mappingKey");
+        database.createObjectStore("profiles", { keyPath: "diveId" });
+        database.createObjectStore("mappings", { keyPath: "key" });
+        const imports = database.createObjectStore("imports", { keyPath: "recordId" });
+        imports.createIndex("sourceHash", "sourceHash", { unique: true });
+        imports.createIndex("diveIds", "diveIds", { multiEntry: true });
+        database.createObjectStore("settings", { keyPath: "key" });
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const { dive, profile } = records("meta|legacy");
+    profile.samples.push({ time: 60, depth: 20, nodeco: 0 });
+    const transaction = legacy.transaction(["dives", "profiles"], "readwrite");
+    transaction.objectStore("dives").put(dive);
+    transaction.objectStore("profiles").put(profile);
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+    });
+    legacy.close();
+
+    const connection = openDatabase(indexedDB, name);
+    databases.push({ name, connection });
+    expect(await getRecord("dives", dive.id, connection)).toEqual({
+      ...dive,
+      decoDive: null,
+    });
   });
 
   it("deduplicates identical v1 re-exports with different local IDs", async () => {

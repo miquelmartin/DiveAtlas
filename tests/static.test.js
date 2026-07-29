@@ -33,6 +33,8 @@ describe("GitHub Pages and offline shell", () => {
     expect(html).toContain("--cp-accent: #087ea4");
     expect(html).toContain("--cp-bg: #eef7fb");
     expect(html).toContain("connect-src 'self' https://*.tile.openstreetmap.org");
+    expect(html).toContain("https://server.arcgisonline.com");
+    expect(html).toContain("https://tiles.openseamap.org");
     expect(html).not.toContain("script-src 'self' 'unsafe-inline'");
     expect(html).not.toMatch(/<script[^>]+(?:analytics|telemetry)/i);
     const app = await readFile(rootFile("src/app.js"), "utf8");

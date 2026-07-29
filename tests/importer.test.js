@@ -47,6 +47,11 @@ describe("incremental import flow", () => {
     expect(results.map((result) => result.type)).toEqual(["success", "success", "error"]);
     expect(await getAll("dives", database)).toHaveLength(1);
     expect(await getAll("mappings", database)).toHaveLength(2);
+    expect(await getAll("mappings", database)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ country: "Spain", countryCode: "ES" }),
+      ]),
+    );
   });
 
   it("skips exact sources and reports changed dives with the same stable identity", async () => {
@@ -68,6 +73,27 @@ describe("incremental import flow", () => {
     });
     expect(changed.results[0].message).toContain("1 conflict");
     expect((await getAll("dives", database))[0].maxDepth).toBe(24.2);
+  });
+
+  it("reports explicit decompression data that conflicts with an unknown record", async () => {
+    const database = await testDatabase();
+    const missing = uddf.replaceAll(/<nodecotime>[^<]+<\/nodecotime>/g, "");
+    const explicit = missing.replace(
+      "<depth>24.2</depth>",
+      "<depth>24.2</depth><nodecotime>0</nodecotime>",
+    );
+    await importSources([source("unknown.uddf", missing)], {
+      databasePromise: database,
+      yieldToMain: async () => {},
+    });
+    const outcome = await importSources([source("explicit-deco.uddf", explicit)], {
+      databasePromise: database,
+      yieldToMain: async () => {},
+    });
+    expect(outcome.results[0].message).toContain("1 conflict");
+    expect(await getAll("dives", database)).toEqual([
+      expect.objectContaining({ decoDive: null }),
+    ]);
   });
 
   it("stores different dives whose source documents both use id 1", async () => {

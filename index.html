@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'sha256-HNjOU2rt1GsFc5zDEQXklLEbjDyKexAo5wKONo5tkTc='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org; connect-src 'self' https://*.tile.openstreetmap.org; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+      content="default-src 'self'; script-src 'self' 'sha256-HNjOU2rt1GsFc5zDEQXklLEbjDyKexAo5wKONo5tkTc='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://server.arcgisonline.com https://tiles.openseamap.org; connect-src 'self' https://*.tile.openstreetmap.org https://server.arcgisonline.com https://tiles.openseamap.org; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
     >
     <script>
       (() => {
@@ -77,18 +77,17 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icons/diveatlas.svg" type="image/svg+xml">
     <link rel="stylesheet" href="vendor/leaflet.css">
+    <link rel="stylesheet" href="vendor/MarkerCluster.css">
+    <link rel="stylesheet" href="vendor/MarkerCluster.Default.css">
     <link rel="stylesheet" href="styles.css">
     <script src="vendor/leaflet.js" defer></script>
+    <script src="vendor/leaflet.markercluster.js" defer></script>
     <script type="module" src="src/app.js"></script>
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
     <header class="app-header">
-      <div>
-        <p class="eyebrow">Private by design</p>
-        <h1>DiveAtlas</h1>
-        <p class="tagline">Your dive history, mapped locally in this browser.</p>
-      </div>
+      <h1>DiveAtlas</h1>
       <nav class="workspace-tabs" aria-label="Workspaces">
         <button class="tab is-active" type="button" data-workspace="data" aria-controls="data-workspace" aria-selected="true">Data</button>
         <button class="tab" type="button" data-workspace="view" aria-controls="view-workspace" aria-selected="false">View</button>
@@ -96,12 +95,8 @@
     </header>
 
     <main id="workspace">
-      <section id="data-workspace" class="workspace" aria-labelledby="data-heading">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Data workspace</p>
-            <h2 id="data-heading">Build and protect your local library</h2>
-          </div>
+      <section id="data-workspace" class="workspace" aria-label="Data workspace">
+        <div class="section-heading compact-heading">
           <p class="privacy-chip">No dive data leaves this device</p>
         </div>
 
@@ -189,7 +184,7 @@
           </div>
           <div class="table-scroll">
             <table>
-              <thead><tr><th scope="col"><input id="select-all-mappings" type="checkbox" aria-label="Select all visible mappings"></th><th scope="col">Location</th><th scope="col">Site</th><th scope="col">Latitude</th><th scope="col">Longitude</th><th scope="col">Confidence</th></tr></thead>
+              <thead><tr><th scope="col"><input id="select-all-mappings" type="checkbox" aria-label="Select all visible mappings"></th><th scope="col">Location</th><th scope="col">Site</th><th scope="col">Country</th><th scope="col">Latitude</th><th scope="col">Longitude</th><th scope="col">Confidence</th></tr></thead>
               <tbody id="mapping-table-body"></tbody>
             </table>
           </div>
@@ -233,45 +228,45 @@
 
         <section class="card privacy-note" aria-labelledby="privacy-heading">
           <h3 id="privacy-heading">Privacy and network disclosure</h3>
-          <p>DiveAtlas has no accounts, analytics, cookies, upload endpoint, or remote dive storage. Imports and backups are processed only on this device. GitHub Pages may log visitor IP addresses. OpenStreetMap's tile servers receive map tile requests and your IP address and may infer the geographic area being viewed. Opening the map never sends dive records or file contents.</p>
+          <p>DiveAtlas has no accounts, analytics, cookies, upload endpoint, or remote dive storage. Imports, country inference, and backups are processed only on this device. GitHub Pages may log visitor IP addresses. Esri, OpenStreetMap, and OpenSeaMap receive requests only when their map layers are displayed; those requests expose your IP address and viewed area but never dive records or file contents.</p>
           <a href="PRIVACY.md">Read the full privacy notice</a>
         </section>
       </section>
 
-      <section id="view-workspace" class="workspace" aria-labelledby="view-heading" hidden>
-        <div class="section-heading">
-          <div><p class="eyebrow">View workspace</p><h2 id="view-heading">Explore where and how you dived</h2></div>
-          <p id="view-result-count" class="privacy-chip">0 dives</p>
-        </div>
-        <section class="card filters" aria-label="Dive filters">
-          <label>Location <select id="location-filter"><option value="">All locations</option></select></label>
-          <label>Site <select id="site-filter"><option value="">All sites</option></select></label>
-          <label>From <input id="date-from" type="date"></label>
-          <label>To <input id="date-to" type="date"></label>
-          <label>Search <input id="view-search" type="search" placeholder="Dive number or text"></label>
-          <button id="clear-filters" type="button">Clear filters</button>
-          <button id="reset-map-filter" type="button" disabled>Reset map view</button>
+      <section id="view-workspace" class="workspace view-workspace" aria-label="View workspace" hidden>
+        <section class="view-toolbar" aria-label="Dive filters">
+          <p id="view-result-count">0 dives</p>
+          <label>Deeper than <span><input id="min-depth" type="number" min="0" step="1" inputmode="decimal"> m</span></label>
+          <label>Longer than <span><input id="min-duration" type="number" min="0" step="1" inputmode="decimal"> min</span></label>
+          <button id="clear-filters" type="button">Reset filters</button>
+          <button id="reset-map-filter" type="button" disabled>Show all map</button>
         </section>
-        <div class="view-grid">
-          <section class="card map-card" aria-labelledby="map-heading">
-            <div class="card-heading"><div><h3 id="map-heading">Dive map</h3><p>Only matched sites appear on the map; unmatched dives remain in the list.</p></div></div>
-            <div id="map" aria-label="Interactive map of matched dive sites"></div>
-          </section>
-          <section class="card dive-list-card" aria-labelledby="filtered-dives-heading">
-            <h3 id="filtered-dives-heading">Filtered dives</h3>
+        <div class="view-dashboard">
+          <section class="dashboard-pane dive-list-pane" aria-label="Filtered dives">
+            <div class="dive-list-header" aria-label="Sort dives">
+              <button type="button" data-sort="number" data-label="#">#</button>
+              <button type="button" data-sort="location" data-label="Location">Location</button>
+              <button type="button" data-sort="site" data-label="Site">Site</button>
+              <button type="button" data-sort="country" data-label="Country">Country</button>
+            </div>
             <div id="view-dive-list" class="dive-list"></div>
           </section>
+          <section class="dashboard-pane map-pane" aria-label="Dive map">
+            <div id="map" aria-label="Interactive map of matched dive sites"></div>
+            <div class="date-scrubber">
+              <div class="date-scrubber-label"><span>Date range</span><output id="date-range-label">No dated dives</output></div>
+              <div class="range-stack">
+                <input id="date-range-start" type="range" min="0" max="0" value="0" aria-label="Earliest dive date">
+                <input id="date-range-end" type="range" min="0" max="0" value="0" aria-label="Latest dive date">
+              </div>
+            </div>
+          </section>
+          <section class="dashboard-pane profile-pane" aria-label="Selected dive profiles and details">
+            <div id="profile-chart" class="profile-chart"></div>
+            <div id="dive-detail" class="dive-detail"><p>Select one or more dives to compare profiles.</p></div>
+          </section>
         </div>
-        <section class="card detail-card" aria-labelledby="detail-heading">
-          <h3 id="detail-heading">Dive details</h3>
-          <div id="dive-detail" class="dive-detail"><p>Select a dive to inspect its profile.</p></div>
-          <div id="profile-chart" class="profile-chart"></div>
-        </section>
       </section>
     </main>
-    <footer>
-      <p>DiveAtlas works locally. Original dive files remain your archive.</p>
-      <p><a href="PRIVACY.md">Privacy</a> · <a href="https://github.com/miquelmartin/DiveAtlas">Source</a></p>
-    </footer>
   </body>
 </html>

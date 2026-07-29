@@ -37,7 +37,9 @@ export function renderProfileChart(container, samples) {
   }
   const width = 720;
   const height = 280;
-  const padding = 32;
+  const padding = 42;
+  const plotRight = width - padding;
+  const plotBottom = height - padding;
   const svg = svgElement("svg", {
     viewBox: `0 0 ${width} ${height}`,
     role: "img",
@@ -51,6 +53,43 @@ export function renderProfileChart(container, samples) {
       if (sample.depth > maxDepth) maxDepth = sample.depth;
     });
   });
+  for (let index = 0; index <= 4; index += 1) {
+    const ratio = index / 4;
+    const x = padding + ratio * (plotRight - padding);
+    const y = padding + ratio * (plotBottom - padding);
+    const depthLabel = svgElement("text", {
+      x: padding - 6,
+      y: y + 4,
+      "text-anchor": "end",
+      class: "profile-axis-label",
+    });
+    const timeLabel = svgElement("text", {
+      x,
+      y: plotBottom + 18,
+      "text-anchor": "middle",
+      class: "profile-axis-label",
+    });
+    depthLabel.textContent = `${(ratio * maxDepth).toFixed(0)} m`;
+    timeLabel.textContent = `${Math.round((ratio * maxTime) / 60)} min`;
+    svg.append(
+      svgElement("line", {
+        x1: padding,
+        x2: plotRight,
+        y1: y,
+        y2: y,
+        class: "profile-grid",
+      }),
+      depthLabel,
+      svgElement("line", {
+        x1: x,
+        x2: x,
+        y1: padding,
+        y2: plotBottom,
+        class: "profile-grid",
+      }),
+      timeLabel,
+    );
+  }
   if (series.length === 1) {
     svg.append(
       svgElement("path", {
@@ -71,7 +110,7 @@ export function renderProfileChart(container, samples) {
     x1: padding,
     x2: padding,
     y1: padding,
-    y2: height - padding,
+    y2: plotBottom,
     class: "profile-cursor",
     hidden: "true",
   });
@@ -81,18 +120,24 @@ export function renderProfileChart(container, samples) {
   svg.append(cursor);
   const legend = document.createElement("ul");
   legend.className = "profile-legend";
-  series.forEach((item, index) => {
+  series.slice(0, 6).forEach((item, index) => {
     const entry = document.createElement("li");
     const swatch = document.createElement("span");
     swatch.className = `profile-swatch profile-series-${index % 4}`;
     entry.append(swatch, document.createTextNode(item.label));
     legend.append(entry);
   });
+  if (series.length > 6) {
+    const remaining = document.createElement("li");
+    remaining.textContent = `+${series.length - 6} more`;
+    legend.append(remaining);
+  }
   container.append(svg, legend, tooltip);
 
   svg.addEventListener("pointermove", (event) => {
     const bounds = svg.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+    const svgX = ((event.clientX - bounds.left) / bounds.width) * width;
+    const ratio = Math.max(0, Math.min(1, (svgX - padding) / (plotRight - padding)));
     const targetTime = ratio * maxTime;
     const nearest = series.map((item) => ({
       label: item.label,

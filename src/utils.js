@@ -37,10 +37,27 @@ export function normalizedDivePayload(dive, profile) {
     sourceName: _sourceName,
     contentHash: _contentHash,
     uddfId: _uddfId,
+    decoDive: _decoDive,
     ...stableDive
   } = dive;
-  const { diveId: _diveId, ...stableProfile } = profile;
-  return { dive: stableDive, profile: stableProfile };
+  const { diveId: _diveId, samples = [], ...stableProfile } = profile;
+  return {
+    dive: stableDive,
+    profile: {
+      ...stableProfile,
+      samples: samples.map(({ nodecoReported, ...sample }) =>
+        nodecoReported === true ? { ...sample, nodecoReported: true } : sample,
+      ),
+    },
+  };
+}
+
+export function deriveDecoDive(samples = []) {
+  const reported = samples.filter((sample) => sample.nodecoReported === true);
+  if (!reported.length) return null;
+  return reported.some(
+    (sample) => Number.isFinite(sample.depth) && sample.depth >= 3 && sample.nodeco === 0,
+  );
 }
 
 function payloadToken(payload) {
@@ -60,10 +77,14 @@ export function canonicalizeLibraryIdentities(data) {
     if (!profile) return;
     const canonicalId = stableDiveId(dive);
     const candidate = {
-      dive,
+      dive: {
+        ...dive,
+        decoDive: typeof dive.decoDive === "boolean" ? dive.decoDive : deriveDecoDive(profile.samples),
+      },
       profile,
-      payload: stableStringify(normalizedDivePayload(dive, profile)),
+      payload: "",
     };
+    candidate.payload = stableStringify(normalizedDivePayload(candidate.dive, profile));
     if (!groups.has(canonicalId)) groups.set(canonicalId, []);
     groups.get(canonicalId).push(candidate);
   });
