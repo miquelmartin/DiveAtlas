@@ -10,20 +10,22 @@ import { importSources } from "./importer.js";
 import { initializeMap, renderMap } from "./map.js";
 import { renderProfileChart } from "./profile-chart.js";
 import { downloadJson, formatBytes } from "./utils.js";
-import { filterDives } from "./view-model.js";
+import { filterDives, filterDivesToBounds } from "./view-model.js";
 
 const state = {
   dives: [],
   mappings: [],
   selectedDives: new Set(),
   selectedMappings: new Set(),
-  selectedViewDive: null,
+  selectedViewDives: new Set(),
+  mapBounds: null,
   cancelled: false,
   mapInitialized: false,
   pendingDiveFiles: [],
   pendingCoordinateFile: null,
   diveImporting: false,
   coordinateImporting: false,
+  profileRenderVersion: 0,
 };
 
 const elements = Object.fromEntries(
@@ -31,7 +33,6 @@ const elements = Object.fromEntries(
     "dive-files",
     "dive-drop-zone",
     "dive-selection-status",
-    "import-dives",
     "cancel-dive-import",
     "dive-progress-wrap",
     "dive-import-progress",
@@ -41,7 +42,6 @@ const elements = Object.fromEntries(
     "coordinate-file",
     "coordinate-drop-zone",
     "coordinate-selection-status",
-    "import-coordinates",
     "coordinate-import-results",
     "dive-count",
     "mapped-count",
@@ -71,6 +71,7 @@ const elements = Object.fromEntries(
     "date-to",
     "view-search",
     "clear-filters",
+    "reset-map-filter",
     "view-result-count",
     "view-dive-list",
     "dive-detail",
@@ -94,9 +95,16 @@ function setWorkspace(name) {
   });
   if (name === "view") setTimeout(() => globalThis.dispatchEvent(new Event("resize")), 0);
   if (name === "view" && !state.mapInitialized) {
-    initializeMap(elements.map);
+    initializeMap(elements.map, {
+      onBoundsChange: (bounds) => {
+        state.mapBounds = bounds;
+        renderView({ updateMap: false });
+      },
+      onMarkerSelect: (ids) => void toggleViewDives(ids),
+    });
     state.mapInitialized = true;
-    renderView();
+    state.mapBounds = null;
+    renderView({ fitMap: true });
   }
 }
 
@@ -150,8 +158,6 @@ function setDiveFiles(fileList) {
     state.pendingDiveFiles,
     files.length - state.pendingDiveFiles.length,
   );
-  elements["import-dives"].disabled =
-    state.diveImporting || state.pendingDiveFiles.length === 0;
 }
 
 function setCoordinateFiles(fileList) {
@@ -166,8 +172,6 @@ function setCoordinateFiles(fileList) {
     : files.length
       ? `${files.length} file(s) ignored. Coordinate files must end in .csv.`
       : "No coordinate file selected.";
-  elements["import-coordinates"].disabled =
-    state.coordinateImporting || !state.pendingCoordinateFile;
 }
 
 function registerDropZone(zone, onFiles) {
@@ -187,6 +191,11 @@ function registerDropZone(zone, onFiles) {
 }
 
 async function handleDiveImport() {
+  if (state.diveImporting) {
+    elements["dive-selection-status"].textContent =
+      "A dive import is already running. Drop these files again when it completes.";
+    return;
+  }
   const files = [...state.pendingDiveFiles];
   if (!files.length) {
     elements["dive-import-results"].textContent = "Choose at least one .uddf dive file.";
@@ -228,6 +237,11 @@ async function handleDiveImport() {
 }
 
 async function handleCoordinateImport() {
+  if (state.coordinateImporting) {
+    elements["coordinate-selection-status"].textContent =
+      "A coordinate import is already running. Choose the file again when it completes.";
+    return;
+  }
   const file = state.pendingCoordinateFile;
   if (!file) {
     elements["coordinate-import-results"].textContent = "Choose one coordinate CSV file.";
@@ -397,39 +411,72 @@ function currentViewDives() {
   });
 }
 
-async function selectViewDive(id) {
-  state.selectedViewDive = id;
-  const dive = state.dives.find((item) => item.id === id);
-  if (!dive) return;
-  const profile = await getRecord("profiles", id);
+async function renderSelectedDiveDetails() {
+  const renderVersion = ++state.profileRenderVersion;
+  const dives = state.dives.filter((dive) => state.selectedViewDives.has(dive.id));
+  if (!dives.length) {
+    elements["dive-detail"].innerHTML = "<p>Select one or more dives to compare profiles.</p>";
+    renderProfileChart(elements["profile-chart"], []);
+    return;
+  }
   const description = document.createElement("p");
-  description.textContent = `${dive.site}, ${dive.location}`;
-  const list = document.createElement("dl");
-  const details = [
-    ["Dive", dive.number ?? "—"],
-    ["Date", dive.dateTime ? new Date(dive.dateTime).toLocaleString() : "Unknown"],
-    ["Maximum depth", Number.isFinite(dive.maxDepth) ? `${dive.maxDepth.toFixed(1)} m` : "—"],
-    ["Duration", Number.isFinite(dive.durationSeconds) ? `${Math.round(dive.durationSeconds / 60)} min` : "—"],
-    ["Computer", [dive.computer.manufacturer, dive.computer.model].filter(Boolean).join(" ") || "Unknown"],
-    ["Decompression", dive.decompression.model || "Unknown"],
-    ["Gradient factors", Number.isFinite(dive.decompression.gfLow) ? `${dive.decompression.gfLow}/${dive.decompression.gfHigh}` : "—"],
-    ["Samples", dive.sampleCount],
-  ];
-  details.forEach(([term, value]) => {
-    const wrapper = document.createElement("div");
-    const dt = document.createElement("dt");
-    const dd = document.createElement("dd");
-    dt.textContent = term;
-    dd.textContent = value;
-    wrapper.append(dt, dd);
-    list.append(wrapper);
-  });
-  elements["dive-detail"].replaceChildren(description, list);
-  renderProfileChart(elements["profile-chart"], profile?.samples ?? []);
-  renderView();
+  description.textContent =
+    dives.length === 1
+      ? `${dives[0].site}, ${dives[0].location}`
+      : `${dives.length} dives selected for profile comparison`;
+  const detailsElement = dives.length === 1 ? document.createElement("dl") : document.createElement("ul");
+  if (dives.length === 1) {
+    const dive = dives[0];
+    const details = [
+      ["Dive", dive.number ?? "—"],
+      ["Date", dive.dateTime ? new Date(dive.dateTime).toLocaleString() : "Unknown"],
+      ["Maximum depth", Number.isFinite(dive.maxDepth) ? `${dive.maxDepth.toFixed(1)} m` : "—"],
+      ["Duration", Number.isFinite(dive.durationSeconds) ? `${Math.round(dive.durationSeconds / 60)} min` : "—"],
+      ["Computer", [dive.computer.manufacturer, dive.computer.model].filter(Boolean).join(" ") || "Unknown"],
+      ["Decompression", dive.decompression.model || "Unknown"],
+      ["Gradient factors", Number.isFinite(dive.decompression.gfLow) ? `${dive.decompression.gfLow}/${dive.decompression.gfHigh}` : "—"],
+      ["Samples", dive.sampleCount],
+    ];
+    details.forEach(([term, value]) => {
+      const wrapper = document.createElement("div");
+      const dt = document.createElement("dt");
+      const dd = document.createElement("dd");
+      dt.textContent = term;
+      dd.textContent = value;
+      wrapper.append(dt, dd);
+      detailsElement.append(wrapper);
+    });
+  } else {
+    detailsElement.className = "selected-dive-summary";
+    dives.forEach((dive) => {
+      const item = document.createElement("li");
+      item.textContent = `Dive ${dive.number ?? "—"} · ${dive.site} · ${
+        Number.isFinite(dive.maxDepth) ? `${dive.maxDepth.toFixed(1)} m` : "unknown depth"
+      }`;
+      detailsElement.append(item);
+    });
+  }
+  elements["dive-detail"].replaceChildren(description, detailsElement);
+  const profiles = await Promise.all(
+    dives.map(async (dive) => ({
+      label: `Dive ${dive.number ?? "—"} · ${dive.site}`,
+      samples: (await getRecord("profiles", dive.id))?.samples ?? [],
+    })),
+  );
+  if (renderVersion !== state.profileRenderVersion) return;
+  renderProfileChart(elements["profile-chart"], profiles);
 }
 
-function renderView() {
+async function toggleViewDives(ids) {
+  const allSelected = ids.every((id) => state.selectedViewDives.has(id));
+  ids.forEach((id) =>
+    allSelected ? state.selectedViewDives.delete(id) : state.selectedViewDives.add(id),
+  );
+  await renderSelectedDiveDetails();
+  renderView({ updateMap: false });
+}
+
+function renderView({ updateMap = true, fitMap = false } = {}) {
   setSelectOptions(elements["location-filter"], state.dives.map((dive) => dive.location), "locations");
   const location = elements["location-filter"].value;
   setSelectOptions(
@@ -437,13 +484,20 @@ function renderView() {
     state.dives.filter((dive) => !location || dive.location === location).map((dive) => dive.site),
     "sites",
   );
-  const dives = currentViewDives();
-  elements["view-result-count"].textContent = `${dives.length} dive${dives.length === 1 ? "" : "s"}`;
+  const baseDives = currentViewDives();
+  const lookup = mappingLookup();
+  const dives = filterDivesToBounds(baseDives, lookup, state.mapBounds);
+  elements["view-result-count"].textContent = state.mapBounds
+    ? `${dives.length} of ${baseDives.length} dives in map view`
+    : `${dives.length} dive${dives.length === 1 ? "" : "s"}`;
+  elements["reset-map-filter"].disabled = !state.mapBounds;
   elements["view-dive-list"].replaceChildren();
   dives.forEach((dive) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.classList.toggle("is-selected", dive.id === state.selectedViewDive);
+    const selected = state.selectedViewDives.has(dive.id);
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", selected);
     const title = document.createElement("strong");
     title.textContent = `Dive ${dive.number ?? "—"} · ${dive.site}`;
     const meta = document.createElement("small");
@@ -451,7 +505,7 @@ function renderView() {
       isMatched(dive) ? "Mapped" : "Unmatched"
     }`;
     button.append(title, meta);
-    button.addEventListener("click", () => selectViewDive(dive.id));
+    button.addEventListener("click", () => void toggleViewDives([dive.id]));
     elements["view-dive-list"].append(button);
   });
   if (!dives.length) {
@@ -460,15 +514,14 @@ function renderView() {
     elements["view-dive-list"].append(message);
   }
 
-  const lookup = mappingLookup();
   const groups = new Map();
-  dives.forEach((dive) => {
+  baseDives.forEach((dive) => {
     const mapping = lookup.get(dive.mappingKey);
     if (!mapping) return;
     if (!groups.has(mapping.key)) groups.set(mapping.key, { mapping, dives: [] });
     groups.get(mapping.key).dives.push(dive);
   });
-  renderMap([...groups.values()]);
+  if (updateMap) renderMap([...groups.values()], { fit: fitMap });
 }
 
 function updateRemovalButtons() {
@@ -496,10 +549,16 @@ async function refreshLibrary() {
   state.mappings.sort((a, b) =>
     `${a.location}\u001f${a.site}`.localeCompare(`${b.location}\u001f${b.site}`),
   );
+  const diveIds = new Set(state.dives.map((dive) => dive.id));
+  state.selectedViewDives = new Set(
+    [...state.selectedViewDives].filter((id) => diveIds.has(id)),
+  );
+  state.mapBounds = null;
   renderSummary();
   renderDiveTable();
   renderMappingTable();
-  renderView();
+  renderView({ fitMap: state.mapInitialized });
+  await renderSelectedDiveDetails();
   updateRemovalButtons();
   await updateStorageStatus();
 }
@@ -508,18 +567,26 @@ function registerEvents() {
   document.querySelectorAll("[data-workspace]").forEach((button) =>
     button.addEventListener("click", () => setWorkspace(button.dataset.workspace)),
   );
-  elements["dive-files"].addEventListener("change", (event) => setDiveFiles(event.target.files));
-  elements["coordinate-file"].addEventListener("change", (event) =>
-    setCoordinateFiles(event.target.files),
-  );
-  elements["import-dives"].addEventListener("click", handleDiveImport);
-  elements["import-coordinates"].addEventListener("click", handleCoordinateImport);
+  elements["dive-files"].addEventListener("change", (event) => {
+    setDiveFiles(event.target.files);
+    if (state.pendingDiveFiles.length) void handleDiveImport();
+  });
+  elements["coordinate-file"].addEventListener("change", (event) => {
+    setCoordinateFiles(event.target.files);
+    if (state.pendingCoordinateFile) void handleCoordinateImport();
+  });
   elements["cancel-dive-import"].addEventListener("click", () => {
     state.cancelled = true;
     elements["dive-import-status"].textContent = "Cancelling after current file…";
   });
-  registerDropZone(elements["dive-drop-zone"], setDiveFiles);
-  registerDropZone(elements["coordinate-drop-zone"], setCoordinateFiles);
+  registerDropZone(elements["dive-drop-zone"], (files) => {
+    setDiveFiles(files);
+    if (state.pendingDiveFiles.length) void handleDiveImport();
+  });
+  registerDropZone(elements["coordinate-drop-zone"], (files) => {
+    setCoordinateFiles(files);
+    if (state.pendingCoordinateFile) void handleCoordinateImport();
+  });
   elements["dive-search"].addEventListener("input", renderDiveTable);
   elements["mapping-search"].addEventListener("input", renderMappingTable);
   elements["select-all-dives"].addEventListener("change", (event) => {
@@ -575,15 +642,24 @@ function registerEvents() {
       elements["backup-status"].textContent = error instanceof Error ? error.message : String(error);
     }
   });
+  const applyViewFilters = () => {
+    state.mapBounds = null;
+    renderView({ fitMap: true });
+  };
   ["location-filter", "site-filter", "date-from", "date-to"].forEach((id) =>
-    elements[id].addEventListener("change", renderView),
+    elements[id].addEventListener("change", applyViewFilters),
   );
-  elements["view-search"].addEventListener("input", renderView);
+  elements["view-search"].addEventListener("input", applyViewFilters);
   elements["clear-filters"].addEventListener("click", () => {
     ["location-filter", "site-filter", "date-from", "date-to", "view-search"].forEach(
       (id) => (elements[id].value = ""),
     );
-    renderView();
+    state.mapBounds = null;
+    renderView({ fitMap: true });
+  });
+  elements["reset-map-filter"].addEventListener("click", () => {
+    state.mapBounds = null;
+    renderView({ fitMap: true });
   });
 }
 

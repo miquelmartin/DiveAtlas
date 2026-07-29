@@ -15,3 +15,17 @@ export function filterDives(dives, filters) {
     );
   });
 }
+
+export function filterDivesToBounds(dives, mappings, bounds) {
+  if (!bounds) return dives;
+  return dives.filter((dive) => {
+    const mapping = mappings.get(dive.mappingKey);
+    if (!mapping) return true;
+    if (mapping.latitude < bounds.south || mapping.latitude > bounds.north) {
+      return false;
+    }
+    return bounds.west <= bounds.east
+      ? mapping.longitude >= bounds.west && mapping.longitude <= bounds.east
+      : mapping.longitude >= bounds.west || mapping.longitude <= bounds.east;
+  });
+}
