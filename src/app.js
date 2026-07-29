@@ -1,4 +1,5 @@
 import {
+  applyMappings,
   getAll,
   getRecord,
   openDatabase,
@@ -7,10 +8,11 @@ import {
 } from "./db.js";
 import { createBackup, restoreBackup } from "./backup.js";
 import { importSources } from "./importer.js";
+import { enrichMappingCountry, UNASSIGNED_COUNTRY } from "./country.js";
 import { initializeMap, renderMap } from "./map.js";
 import { renderProfileChart } from "./profile-chart.js";
 import { downloadJson, formatBytes } from "./utils.js";
-import { filterDives, filterDivesToBounds } from "./view-model.js";
+import { filterDives, filterDivesToBounds, groupAndSortDives } from "./view-model.js";
 
 const state = {
   dives: [],
@@ -26,6 +28,10 @@ const state = {
   diveImporting: false,
   coordinateImporting: false,
   profileRenderVersion: 0,
+  dateValues: [],
+  sortField: "number",
+  sortDirection: "desc",
+  collapsedCountries: new Set(),
 };
 
 const elements = Object.fromEntries(
@@ -65,11 +71,11 @@ const elements = Object.fromEntries(
     "backup-file",
     "restore-backup",
     "backup-status",
-    "location-filter",
-    "site-filter",
-    "date-from",
-    "date-to",
-    "view-search",
+    "min-depth",
+    "min-duration",
+    "date-range-start",
+    "date-range-end",
+    "date-range-label",
     "clear-filters",
     "reset-map-filter",
     "view-result-count",
@@ -114,6 +120,12 @@ function mappingLookup() {
 
 function isMatched(dive, lookup = mappingLookup()) {
   return lookup.has(dive.mappingKey);
+}
+
+function diveType(dive) {
+  if (dive.decoDive === true) return { label: "DECO", className: "deco" };
+  if (dive.decoDive === false) return { label: "NO-DECO", className: "no-deco" };
+  return { label: "UNKNOWN", className: "unknown-deco" };
 }
 
 function appendResult(list, type, filename, message) {
@@ -282,7 +294,10 @@ function filteredMappingsForTable() {
   const query = elements["mapping-search"].value.trim().toLowerCase();
   if (!query) return state.mappings;
   return state.mappings.filter((mapping) =>
-    [mapping.location, mapping.site, mapping.confidence].join(" ").toLowerCase().includes(query),
+    [mapping.location, mapping.site, mapping.country, mapping.confidence]
+      .join(" ")
+      .toLowerCase()
+      .includes(query),
   );
 }
 
@@ -347,6 +362,7 @@ function renderMappingTable() {
     row.append(selection);
     cell(row, mapping.location);
     cell(row, mapping.site);
+    cell(row, mapping.country || UNASSIGNED_COUNTRY);
     cell(row, mapping.latitude.toFixed(5));
     cell(row, mapping.longitude.toFixed(5));
     cell(row, mapping.confidence);
@@ -385,29 +401,23 @@ function renderSummary() {
   }
 }
 
-function setSelectOptions(select, values, label) {
-  const current = select.value;
-  select.replaceChildren();
-  const all = document.createElement("option");
-  all.value = "";
-  all.textContent = `All ${label}`;
-  select.append(all);
-  [...new Set(values.filter(Boolean))].sort().forEach((value) => {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = value;
-    select.append(option);
-  });
-  if ([...select.options].some((option) => option.value === current)) select.value = current;
+function dateRangeFilters() {
+  if (state.dateValues.length < 2) return { from: "", to: "" };
+  const start = Number(elements["date-range-start"].value);
+  const end = Number(elements["date-range-end"].value);
+  const max = state.dateValues.length - 1;
+  return {
+    from: start > 0 ? state.dateValues[start] : "",
+    to: end < max ? state.dateValues[end] : "",
+  };
 }
 
 function currentViewDives() {
+  const dates = dateRangeFilters();
   return filterDives(state.dives, {
-    location: elements["location-filter"].value,
-    site: elements["site-filter"].value,
-    from: elements["date-from"].value,
-    to: elements["date-to"].value,
-    search: elements["view-search"].value,
+    ...dates,
+    minDepth: elements["min-depth"].value,
+    minDuration: elements["min-duration"].value,
   });
 }
 
@@ -424,7 +434,7 @@ async function renderSelectedDiveDetails() {
     dives.length === 1
       ? `${dives[0].site}, ${dives[0].location}`
       : `${dives.length} dives selected for profile comparison`;
-  const detailsElement = dives.length === 1 ? document.createElement("dl") : document.createElement("ul");
+  const detailsElement = dives.length === 1 ? document.createElement("dl") : null;
   if (dives.length === 1) {
     const dive = dives[0];
     const details = [
@@ -432,6 +442,14 @@ async function renderSelectedDiveDetails() {
       ["Date", dive.dateTime ? new Date(dive.dateTime).toLocaleString() : "Unknown"],
       ["Maximum depth", Number.isFinite(dive.maxDepth) ? `${dive.maxDepth.toFixed(1)} m` : "—"],
       ["Duration", Number.isFinite(dive.durationSeconds) ? `${Math.round(dive.durationSeconds / 60)} min` : "—"],
+      [
+        "Dive type",
+        dive.decoDive === true
+          ? "Decompression"
+          : dive.decoDive === false
+            ? "No-decompression"
+            : "Unknown",
+      ],
       ["Computer", [dive.computer.manufacturer, dive.computer.model].filter(Boolean).join(" ") || "Unknown"],
       ["Decompression", dive.decompression.model || "Unknown"],
       ["Gradient factors", Number.isFinite(dive.decompression.gfLow) ? `${dive.decompression.gfLow}/${dive.decompression.gfHigh}` : "—"],
@@ -446,17 +464,10 @@ async function renderSelectedDiveDetails() {
       wrapper.append(dt, dd);
       detailsElement.append(wrapper);
     });
-  } else {
-    detailsElement.className = "selected-dive-summary";
-    dives.forEach((dive) => {
-      const item = document.createElement("li");
-      item.textContent = `Dive ${dive.number ?? "—"} · ${dive.site} · ${
-        Number.isFinite(dive.maxDepth) ? `${dive.maxDepth.toFixed(1)} m` : "unknown depth"
-      }`;
-      detailsElement.append(item);
-    });
   }
-  elements["dive-detail"].replaceChildren(description, detailsElement);
+  elements["dive-detail"].replaceChildren(
+    ...[description, detailsElement].filter(Boolean),
+  );
   const profiles = await Promise.all(
     dives.map(async (dive) => ({
       label: `Dive ${dive.number ?? "—"} · ${dive.site}`,
@@ -477,13 +488,6 @@ async function toggleViewDives(ids) {
 }
 
 function renderView({ updateMap = true, fitMap = false } = {}) {
-  setSelectOptions(elements["location-filter"], state.dives.map((dive) => dive.location), "locations");
-  const location = elements["location-filter"].value;
-  setSelectOptions(
-    elements["site-filter"],
-    state.dives.filter((dive) => !location || dive.location === location).map((dive) => dive.site),
-    "sites",
-  );
   const baseDives = currentViewDives();
   const lookup = mappingLookup();
   const dives = filterDivesToBounds(baseDives, lookup, state.mapBounds);
@@ -492,21 +496,66 @@ function renderView({ updateMap = true, fitMap = false } = {}) {
     : `${dives.length} dive${dives.length === 1 ? "" : "s"}`;
   elements["reset-map-filter"].disabled = !state.mapBounds;
   elements["view-dive-list"].replaceChildren();
-  dives.forEach((dive) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    const selected = state.selectedViewDives.has(dive.id);
-    button.classList.toggle("is-selected", selected);
-    button.setAttribute("aria-pressed", selected);
-    const title = document.createElement("strong");
-    title.textContent = `Dive ${dive.number ?? "—"} · ${dive.site}`;
-    const meta = document.createElement("small");
-    meta.textContent = `${dive.dateTime?.slice(0, 10) || "Unknown date"} · ${dive.location} · ${
-      isMatched(dive) ? "Mapped" : "Unmatched"
-    }`;
-    button.append(title, meta);
-    button.addEventListener("click", () => void toggleViewDives([dive.id]));
-    elements["view-dive-list"].append(button);
+  const diveRows = dives.map((dive) => ({
+    ...dive,
+    country: lookup.get(dive.mappingKey)?.country ?? "Unmapped",
+  }));
+  groupAndSortDives(diveRows, state.sortField, state.sortDirection).forEach((group) => {
+    const details = document.createElement("details");
+    details.className = "country-group";
+    details.open = !state.collapsedCountries.has(group.country);
+    details.addEventListener("toggle", () => {
+      if (details.open) state.collapsedCountries.delete(group.country);
+      else state.collapsedCountries.add(group.country);
+    });
+    const summary = document.createElement("summary");
+    summary.textContent = `${group.country} (${group.dives.length})`;
+    details.append(summary);
+    group.dives.forEach((dive) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "dive-row";
+      const selected = state.selectedViewDives.has(dive.id);
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-pressed", selected);
+      button.setAttribute(
+        "aria-label",
+        `Dive ${dive.number ?? "unknown"}, ${dive.location}, ${dive.site}`,
+      );
+      const values = [
+        ["dive-cell dive-number", dive.number ?? "—"],
+        ["dive-cell", dive.location],
+        ["dive-cell", dive.site],
+        ["dive-cell dive-country", dive.country],
+      ];
+      values.forEach(([className, value]) => {
+        const item = document.createElement("span");
+        item.className = className;
+        item.textContent = value;
+        item.title = String(value);
+        button.append(item);
+      });
+      const stats = document.createElement("span");
+      stats.className = "dive-stats";
+      const depth = Number.isFinite(dive.maxDepth) ? `${dive.maxDepth.toFixed(1)} m` : "—";
+      const duration = Number.isFinite(dive.durationSeconds)
+        ? `${Math.round(dive.durationSeconds / 60)} min`
+        : "—";
+      const deco = document.createElement("span");
+      const type = diveType(dive);
+      deco.className = type.className;
+      deco.textContent = type.label;
+      stats.append(
+        document.createTextNode(
+          `${dive.dateTime?.slice(0, 10) || "Unknown date"} · ${depth} · ${duration} · `,
+        ),
+        deco,
+      );
+      button.append(stats);
+      button.addEventListener("click", () => void toggleViewDives([dive.id]));
+      details.append(button);
+    });
+    elements["view-dive-list"].append(details);
   });
   if (!dives.length) {
     const message = document.createElement("p");
@@ -522,6 +571,36 @@ function renderView({ updateMap = true, fitMap = false } = {}) {
     groups.get(mapping.key).dives.push(dive);
   });
   if (updateMap) renderMap([...groups.values()], { fit: fitMap });
+  document.querySelectorAll("[data-sort]").forEach((button) => {
+    const active = button.dataset.sort === state.sortField;
+    button.textContent = `${button.dataset.label}${active ? (state.sortDirection === "asc" ? " ↑" : " ↓") : ""}`;
+    if (active) button.dataset.direction = state.sortDirection;
+    else delete button.dataset.direction;
+  });
+}
+
+function configureDateRange() {
+  state.dateValues = [
+    ...new Set(state.dives.map((dive) => dive.dateTime?.slice(0, 10)).filter(Boolean)),
+  ].sort();
+  const max = Math.max(0, state.dateValues.length - 1);
+  ["date-range-start", "date-range-end"].forEach((id) => {
+    elements[id].max = max;
+    elements[id].disabled = state.dateValues.length < 2;
+  });
+  elements["date-range-start"].value = 0;
+  elements["date-range-end"].value = max;
+  updateDateRangeLabel();
+}
+
+function updateDateRangeLabel() {
+  if (!state.dateValues.length) {
+    elements["date-range-label"].value = "No dated dives";
+    return;
+  }
+  const start = state.dateValues[Number(elements["date-range-start"].value)];
+  const end = state.dateValues[Number(elements["date-range-end"].value)];
+  elements["date-range-label"].value = start === end ? start : `${start} – ${end}`;
 }
 
 function updateRemovalButtons() {
@@ -544,7 +623,12 @@ async function updateStorageStatus() {
 }
 
 async function refreshLibrary() {
-  [state.dives, state.mappings] = await Promise.all([getAll("dives"), getAll("mappings")]);
+  const [dives, mappings] = await Promise.all([getAll("dives"), getAll("mappings")]);
+  const enrichedMappings = mappings.map(enrichMappingCountry);
+  const missingCountries = enrichedMappings.filter((mapping, index) => !mappings[index].country);
+  if (missingCountries.length) await applyMappings(missingCountries, "merge");
+  state.dives = dives;
+  state.mappings = enrichedMappings;
   state.dives.sort((a, b) => (b.dateTime || "").localeCompare(a.dateTime || ""));
   state.mappings.sort((a, b) =>
     `${a.location}\u001f${a.site}`.localeCompare(`${b.location}\u001f${b.site}`),
@@ -554,6 +638,7 @@ async function refreshLibrary() {
     [...state.selectedViewDives].filter((id) => diveIds.has(id)),
   );
   state.mapBounds = null;
+  configureDateRange();
   renderSummary();
   renderDiveTable();
   renderMappingTable();
@@ -642,18 +727,42 @@ function registerEvents() {
       elements["backup-status"].textContent = error instanceof Error ? error.message : String(error);
     }
   });
-  const applyViewFilters = () => {
-    state.mapBounds = null;
-    renderView({ fitMap: true });
-  };
-  ["location-filter", "site-filter", "date-from", "date-to"].forEach((id) =>
-    elements[id].addEventListener("change", applyViewFilters),
+  ["min-depth", "min-duration"].forEach((id) =>
+    elements[id].addEventListener("input", () => renderView()),
   );
-  elements["view-search"].addEventListener("input", applyViewFilters);
+  const updateDateFilter = (changed) => {
+    let start = Number(elements["date-range-start"].value);
+    let end = Number(elements["date-range-end"].value);
+    if (start > end) {
+      if (changed === "date-range-start") end = start;
+      else start = end;
+      elements["date-range-start"].value = start;
+      elements["date-range-end"].value = end;
+    }
+    updateDateRangeLabel();
+    renderView();
+  };
+  ["date-range-start", "date-range-end"].forEach((id) =>
+    elements[id].addEventListener("input", () => updateDateFilter(id)),
+  );
+  document.querySelectorAll("[data-sort]").forEach((button) =>
+    button.addEventListener("click", () => {
+      const field = button.dataset.sort;
+      if (state.sortField === field) {
+        state.sortDirection = state.sortDirection === "asc" ? "desc" : "asc";
+      } else {
+        state.sortField = field;
+        state.sortDirection = field === "number" ? "desc" : "asc";
+      }
+      renderView({ updateMap: false });
+    }),
+  );
   elements["clear-filters"].addEventListener("click", () => {
-    ["location-filter", "site-filter", "date-from", "date-to", "view-search"].forEach(
-      (id) => (elements[id].value = ""),
-    );
+    elements["min-depth"].value = "";
+    elements["min-duration"].value = "";
+    elements["date-range-start"].value = 0;
+    elements["date-range-end"].value = Math.max(0, state.dateValues.length - 1);
+    updateDateRangeLabel();
     state.mapBounds = null;
     renderView({ fitMap: true });
   });

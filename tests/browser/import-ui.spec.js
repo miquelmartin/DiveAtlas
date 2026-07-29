@@ -42,6 +42,7 @@ test("dedicated file pickers show selection, results, and refreshed tables", asy
   );
   await expect(page.locator("#mapping-count")).toHaveText("2");
   await expect(page.locator("#mapping-table-body")).toContainText("Blue Wall");
+  await expect(page.locator("#mapping-table-body")).toContainText("Spain");
 
   await page.locator("#dive-files").setInputFiles(malformed);
   await expect(page.locator("#dive-import-results")).toContainText("malformed XML");
@@ -76,7 +77,7 @@ test("dropping a UDDF updates selection and imports through the real UI", async 
   expect(errors).toEqual([]);
 });
 
-test("map pins multi-select profiles and map zoom filters the dive list", async ({ page }) => {
+test("dense dashboard clusters dives, filters the map, and compares profiles", async ({ page }) => {
   const errors = await openProductionShell(page);
   const first = await readFile(representative, "utf8");
   const second = first
@@ -99,28 +100,73 @@ test("map pins multi-select profiles and map zoom filters the dive list", async 
     name: "map.csv",
     mimeType: "text/csv",
     buffer: Buffer.from(
-      'Location,Site,Latitude,Longitude\n"Example Island, Test Region",Blue Wall,0,0\n"Example Island, Test Region",Far Reef,50,50',
+      'Location,Site,Latitude,Longitude\n"Example Island, Test Region",Blue Wall,48.8566,2.3522\n"Example Island, Test Region",Far Reef,35.6762,139.6503',
     ),
   });
   await expect(page.locator("#mapping-count")).toHaveText("2");
   await page.getByRole("button", { name: "View" }).click();
-  await expect(page.locator(".leaflet-marker-icon")).toHaveCount(2);
+  await expect(page.locator(".marker-cluster")).toHaveCount(1);
+  await expect(page.locator(".marker-cluster")).toHaveText("2");
+  await expect(page.locator(".leaflet-marker-icon:not(.marker-cluster)")).toHaveCount(1);
+  await expect(page.locator('.leaflet-tile[src*="server.arcgisonline.com"]').first()).toBeAttached();
+  await expect(page.locator(".country-group > summary")).toHaveText(["France (2)", "Japan (1)"]);
 
-  const blueWallMarker = page.locator(".leaflet-marker-icon").nth(1);
-  await blueWallMarker.click();
+  await page.locator(".leaflet-control-layers-toggle").hover({ force: true });
+  await expect(page.getByText("Satellite", { exact: true })).toBeVisible();
+  await expect(page.getByText("Street map", { exact: true })).toBeVisible();
+  await page.getByText("Seamarks", { exact: true }).click();
+  await expect(page.getByRole("checkbox", { name: "Seamarks" })).toBeChecked();
+
+  const farMarker = page.locator(".leaflet-marker-icon:not(.marker-cluster)");
+  await farMarker.click();
+  await expect(page.locator("#profile-chart .profile-line")).toHaveCount(1);
+  await page.getByRole("button", { name: /Dive 42,/ }).click();
   await expect(page.locator("#dive-detail")).toContainText("2 dives selected");
   await expect(page.locator(".profile-legend li")).toHaveCount(2);
   await expect(page.locator("#profile-chart .profile-line")).toHaveCount(2);
-  await blueWallMarker.click();
-  await expect(page.locator("#dive-detail")).toContainText("Select one or more dives");
-  await page.locator("#view-dive-list button").first().evaluate((button) => {
-    button.click();
-    button.click();
-  });
-  await expect(page.locator("#profile-chart .profile-line")).toHaveCount(0);
+  await expect(page.locator(".profile-axis-label")).toHaveCount(10);
+  await page.locator("#profile-chart svg").hover({ position: { x: 200, y: 100 } });
+  await expect(page.locator(".chart-tooltip")).toContainText("min");
+  await expect(page.locator(".chart-tooltip")).toContainText("m");
 
-  await blueWallMarker.dblclick();
-  await expect(page.locator("#view-result-count")).toContainText("2 of 3 dives in map view");
-  await expect(page.locator("#view-dive-list button")).toHaveCount(2);
+  const [mapBox, chartBox] = await Promise.all([
+    page.locator("#map").boundingBox(),
+    page.locator("#profile-chart").boundingBox(),
+  ]);
+  expect(Math.max(mapBox.y, chartBox.y)).toBeLessThan(
+    Math.min(mapBox.y + mapBox.height, chartBox.y + chartBox.height),
+  );
+
+  await farMarker.dblclick();
+  await expect(page.locator("#view-result-count")).toContainText("of 3 dives in map view");
+  await page.locator("#reset-map-filter").click();
+  await expect(page.locator("#view-result-count")).toHaveText("3 dives");
+
+  await page.locator("#date-range-end").evaluate((input) => {
+    input.value = "1";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect(page.locator("#view-result-count")).toHaveText("2 dives");
+  await expect(page.locator(".dive-row")).toHaveCount(2);
+  await expect(page.locator("#date-range-label")).toContainText("2025-06-16");
+
+  await page.locator("#min-depth").fill("25");
+  await expect(page.locator("#view-result-count")).toHaveText("0 dives");
+  await page.locator("#clear-filters").click();
+  await expect(page.locator("#view-result-count")).toHaveText("3 dives");
+
+  await page.locator(".country-group").filter({ hasText: "France (2)" }).locator("summary").click();
+  await expect(page.locator(".country-group").filter({ hasText: "France (2)" })).not.toHaveAttribute(
+    "open",
+    "",
+  );
+  await page.locator('[data-sort="country"]').click();
+  await expect(page.locator('[data-sort="country"]')).toHaveAttribute("data-direction", "asc");
+  await expect(page.locator(".country-group > summary")).toHaveText(["France (2)", "Japan (1)"]);
+  await expect(page.locator(".country-group").filter({ hasText: "France (2)" })).not.toHaveAttribute(
+    "open",
+    "",
+  );
+  expect(await page.locator(".tagline").count()).toBe(0);
   expect(errors).toEqual([]);
 });

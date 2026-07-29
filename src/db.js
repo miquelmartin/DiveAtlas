@@ -1,6 +1,7 @@
 import { DB_NAME, DB_VERSION } from "./config.js";
 import {
   canonicalizeLibraryIdentities,
+  deriveDecoDive,
   normalizedDivePayload,
   stableStringify,
 } from "./utils.js";
@@ -70,6 +71,33 @@ function migrateV1(transaction) {
   load("imports");
 }
 
+function migrateV2(transaction) {
+  const dives = transaction.objectStore("dives");
+  const profiles = transaction.objectStore("profiles");
+  const diveRequest = dives.getAll();
+  const profileRequest = profiles.getAll();
+  const loaded = {};
+  const update = () => {
+    if (!loaded.dives || !loaded.profiles) return;
+    const profileById = new Map(loaded.profiles.map((profile) => [profile.diveId, profile]));
+    loaded.dives.forEach((dive) => {
+      if (typeof dive.decoDive === "boolean") return;
+      dives.put({
+        ...dive,
+        decoDive: deriveDecoDive(profileById.get(dive.id)?.samples),
+      });
+    });
+  };
+  diveRequest.onsuccess = () => {
+    loaded.dives = diveRequest.result;
+    update();
+  };
+  profileRequest.onsuccess = () => {
+    loaded.profiles = profileRequest.result;
+    update();
+  };
+}
+
 export function openDatabase(factory = globalThis.indexedDB, name = DB_NAME) {
   const useDefaultConnection = factory === globalThis.indexedDB && name === DB_NAME;
   if (useDefaultConnection && defaultConnection) return defaultConnection;
@@ -78,6 +106,7 @@ export function openDatabase(factory = globalThis.indexedDB, name = DB_NAME) {
     request.onupgradeneeded = (event) => {
       if (event.oldVersion === 0) createSchema(request.result);
       if (event.oldVersion === 1) migrateV1(request.transaction);
+      if (event.oldVersion === 2) migrateV2(request.transaction);
     };
     request.onsuccess = () => {
       request.result.onversionchange = () => request.result.close();
@@ -249,6 +278,13 @@ export async function applyMappings(
         conflicts.push({
           key: mapping.key,
           message: `Existing mapping for ${mapping.location} / ${mapping.site} was retained`,
+        });
+      }
+      if (same && !existing.country && mapping.country) {
+        store.put({
+          ...existing,
+          country: mapping.country,
+          countryCode: mapping.countryCode ?? "",
         });
       }
       continue;

@@ -1,4 +1,4 @@
-const CACHE_NAME = "diveatlas-shell-v5";
+const CACHE_NAME = "diveatlas-shell-v6";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -7,6 +7,10 @@ const APP_SHELL = [
   "./icons/diveatlas.svg",
   "./vendor/leaflet.css",
   "./vendor/leaflet.js",
+  "./vendor/leaflet.markercluster.js",
+  "./vendor/MarkerCluster.css",
+  "./vendor/MarkerCluster.Default.css",
+  "./vendor/country-coder.js",
   "./vendor/images/layers.png",
   "./vendor/images/layers-2x.png",
   "./vendor/images/marker-icon.png",
@@ -15,6 +19,7 @@ const APP_SHELL = [
   "./src/app.js",
   "./src/backup.js",
   "./src/config.js",
+  "./src/country.js",
   "./src/db.js",
   "./src/importer.js",
   "./src/import-worker.js",

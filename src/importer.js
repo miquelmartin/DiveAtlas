@@ -5,6 +5,7 @@ import {
   openDatabase,
 } from "./db.js";
 import { parseCoordinateCsv, parseUddf } from "./parser.js";
+import { enrichMappingCountry } from "./country.js";
 import {
   mappingKey,
   normalizedDivePayload,
@@ -67,7 +68,8 @@ export async function importSources(
       const processed = await workerClient.process(file, csv ? "csv" : "uddf");
       if (csv) {
         const mode = mappingMode === "replace" && !replaceApplied ? "replace" : "merge";
-        const applied = await applyMappings(processed.parsed.mappings, mode, databasePromise);
+        const mappings = processed.parsed.mappings.map(enrichMappingCountry);
+        const applied = await applyMappings(mappings, mode, databasePromise);
         replaceApplied ||= mode === "replace";
         const issueCount = processed.parsed.issues.length + applied.conflicts.length;
         results.push({

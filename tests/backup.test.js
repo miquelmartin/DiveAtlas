@@ -30,6 +30,7 @@ it("round-trips a complete library into empty storage", async () => {
     site: "Site",
     computer: {},
     decompression: {},
+    decoDive: false,
   };
   dive.id = stableDiveId(dive);
   const profile = { diveId: dive.id, samples: [{ time: 0, depth: 0 }, { time: 60, depth: 20 }] };

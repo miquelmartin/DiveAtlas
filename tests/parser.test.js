@@ -2,7 +2,13 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseCoordinateCsv, parseUddf } from "../src/parser.js";
-import { mappingKey, normalizeKey, stableDiveId } from "../src/utils.js";
+import {
+  mappingKey,
+  normalizedDivePayload,
+  normalizeKey,
+  stableDiveId,
+  stableStringify,
+} from "../src/utils.js";
 
 const fixture = (name) =>
   readFile(join(process.cwd(), "tests", "fixtures", name), "utf8");
@@ -23,6 +29,7 @@ describe("UDDF parser", () => {
     expect(dive.decompression).toMatchObject({ model: "buehlmann", gfLow: 40, gfHigh: 85 });
     expect(dive.maxDepth).toBe(24.2);
     expect(dive.durationSeconds).toBe(180);
+    expect(dive.decoDive).toBe(false);
     expect(profile.samples).toHaveLength(4);
     expect(profile.samples[0].temperature).toBeCloseTo(20);
     expect(profile.samples[2].nodeco).toBe(0);
@@ -46,6 +53,21 @@ describe("UDDF parser", () => {
     const [{ profile }] = parseUddf(invalidWaypoint, "missing-values.uddf");
     expect(profile.samples).toHaveLength(2);
     expect(profile.samples[0].time).toBe(120);
+  });
+
+  it("distinguishes explicit decompression from missing no-decompression data", async () => {
+    const source = await fixture("representative.uddf");
+    const missing = source.replaceAll(/<nodecotime>[^<]+<\/nodecotime>/g, "");
+    const explicitDeco = source.replace(
+      "<depth>24.2</depth>",
+      "<depth>24.2</depth><nodecotime>0</nodecotime>",
+    );
+    const missingRecord = parseUddf(missing)[0];
+    const explicitRecord = parseUddf(explicitDeco)[0];
+    expect(missingRecord.dive.decoDive).toBeNull();
+    expect(explicitRecord.dive.decoDive).toBe(true);
+    expect(stableStringify(normalizedDivePayload(missingRecord.dive, missingRecord.profile))).not
+      .toBe(stableStringify(normalizedDivePayload(explicitRecord.dive, explicitRecord.profile)));
   });
 
   it("builds a stable metadata identity when an explicit ID is absent", () => {

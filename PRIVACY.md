@@ -10,9 +10,11 @@ The library is tied to the browser profile and origin where it was imported. Rel
 
 The application shell is hosted by GitHub Pages. GitHub may receive and log normal web-request information, including IP address and user agent, under [GitHub's Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
 
-When the View workspace loads the interactive map, the configured OpenStreetMap tile service receives requests for map tiles plus normal network information such as the visitor's IP address. Tile coordinates can reveal the geographic area being viewed. The tile requests do not include dive records, profile samples, imported file contents, or backup data. OpenStreetMap's services are governed by the [OSMF privacy policy](https://osmfoundation.org/wiki/Privacy_Policy).
+The map defaults to Esri World Imagery. Esri receives requests for satellite tiles plus normal network information such as the visitor's IP address, and tile coordinates can reveal the geographic area being viewed. Esri's services are governed by the [Esri Products & Services Privacy Statement](https://www.esri.com/en-us/privacy/privacy-statements/privacy-statement).
 
-No other third-party runtime service is configured. The locally vendored Leaflet library renders the map, and the Content Security Policy limits outbound application connections to the configured tile host.
+The layer control can instead display OpenStreetMap streets and can add OpenSeaMap seamarks. A provider receives requests only while its layer is displayed. OpenStreetMap's services are governed by the [OSMF privacy policy](https://osmfoundation.org/wiki/Privacy_Policy), and OpenSeaMap publishes its [privacy policy](https://www.openseamap.org/index.php?id=privacy&L=1). These tile requests never include dive records, profile samples, imported file contents, coordinate rows, country-inference results, or backup data.
+
+Leaflet, Leaflet.markercluster, and the country-boundary coder are served with DiveAtlas. Country inference runs locally and makes no geocoding request. The Content Security Policy limits outbound application connections to the three configured tile hosts.
 
 ## Backups
 

@@ -13,12 +13,29 @@ export function initializeMap(element, callbacks = {}) {
   }
   onBoundsChange = callbacks.onBoundsChange ?? onBoundsChange;
   onMarkerSelect = callbacks.onMarkerSelect ?? onMarkerSelect;
-  map = L.map(element).setView([20, 0], 2);
-  L.tileLayer(TILE_CONFIG.url, {
-    attribution: TILE_CONFIG.attribution,
-    maxZoom: TILE_CONFIG.maxZoom,
-  }).addTo(map);
-  markerLayer = L.layerGroup().addTo(map);
+  map = L.map(element, { zoomControl: true }).setView([20, 0], 2);
+  const satellite = L.tileLayer(TILE_CONFIG.satellite.url, TILE_CONFIG.satellite).addTo(map);
+  const street = L.tileLayer(TILE_CONFIG.street.url, TILE_CONFIG.street);
+  const seamarks = L.tileLayer(TILE_CONFIG.seamarks.url, TILE_CONFIG.seamarks);
+  L.control
+    .layers(
+      {
+        [TILE_CONFIG.satellite.label]: satellite,
+        [TILE_CONFIG.street.label]: street,
+      },
+      { [TILE_CONFIG.seamarks.label]: seamarks },
+      { position: "topright" },
+    )
+    .addTo(map);
+  markerLayer = (
+    L.markerClusterGroup
+      ? L.markerClusterGroup({
+          showCoverageOnHover: false,
+          maxClusterRadius: 48,
+          spiderfyOnMaxZoom: true,
+        })
+      : L.layerGroup()
+  ).addTo(map);
   map.on("moveend", () => {
     if (programmaticMove) return;
     const bounds = map.getBounds();
@@ -37,16 +54,17 @@ export function renderMap(diveGroups, { fit = false } = {}) {
   const bounds = [];
   diveGroups.forEach(({ mapping, dives }) => {
     const coordinates = [mapping.latitude, mapping.longitude];
-    bounds.push(coordinates);
-    const marker = L.marker(coordinates)
-      .bindPopup(
-        `<strong>${escapeHtml(mapping.site)}</strong><br>${escapeHtml(mapping.location)}<br>${
-          dives.length
-        } dive${dives.length === 1 ? "" : "s"}`,
+    dives.forEach((dive) => {
+      bounds.push(coordinates);
+      const marker = L.marker(coordinates).bindPopup(
+        `<strong>Dive ${escapeHtml(dive.number ?? "—")}</strong><br>${escapeHtml(
+          mapping.site,
+        )}<br>${escapeHtml(mapping.location)}`,
         { autoPan: false },
-      )
-      .addTo(markerLayer);
-    marker.on("click", () => onMarkerSelect(dives.map((dive) => dive.id)));
+      );
+      marker.on("click", () => onMarkerSelect([dive.id]));
+      markerLayer.addLayer(marker);
+    });
   });
   if (fit && bounds.length) {
     programmaticMove = true;

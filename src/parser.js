@@ -1,4 +1,4 @@
-import { mappingKey, stableDiveId } from "./utils.js";
+import { deriveDecoDive, mappingKey, stableDiveId } from "./utils.js";
 
 const UNKNOWN = "Unknown";
 
@@ -55,6 +55,7 @@ function parseWaypoint(waypoint) {
     depth,
     temperature: convertTemperature(numeric(waypoint, "temperature")),
     nodeco: nodeco ?? (depth !== null && depth >= 3 ? 0 : 5940),
+    nodecoReported: nodeco !== null,
     gf99: numeric(waypoint, "gradientfactor"),
     cns: numeric(waypoint, "cns"),
     ppo2: numeric(waypoint, "calculatedpo2"),
@@ -77,6 +78,7 @@ function profileSummary(samples) {
     maxGf99: maximum(finite("gf99")),
     maxCns: maximum(finite("cns")),
     maxPpo2: maximum(finite("ppo2")),
+    decoDive: deriveDecoDive(samples),
   };
 }
 

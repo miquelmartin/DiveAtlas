@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { profilePath, renderProfileChart } from "../src/profile-chart.js";
-import { filterDives, filterDivesToBounds } from "../src/view-model.js";
+import { filterDives, filterDivesToBounds, groupAndSortDives } from "../src/view-model.js";
 
 const dives = [
   {
@@ -10,6 +10,8 @@ const dives = [
     location: "Island",
     site: "Wall",
     region: "Atlantic",
+    maxDepth: 18,
+    durationSeconds: 1800,
   },
   {
     id: "two",
@@ -18,6 +20,8 @@ const dives = [
     location: "Island",
     site: "Reef",
     region: "Atlantic",
+    maxDepth: 32,
+    durationSeconds: 3600,
   },
 ];
 
@@ -31,6 +35,31 @@ it("combines location, site, date, and text filters", () => {
       search: "atlantic",
     }),
   ).toEqual([dives[0]]);
+});
+
+it("filters by minimum depth, duration, and date range", () => {
+  expect(
+    filterDives(dives, {
+      minDepth: 30,
+      minDuration: 45,
+      from: "2025-01-01",
+      to: "2025-12-31",
+    }),
+  ).toEqual([dives[1]]);
+});
+
+it("groups countries and sorts dive columns", () => {
+  const grouped = groupAndSortDives(
+    [
+      { ...dives[0], country: "Spain" },
+      { ...dives[1], country: "France" },
+      { ...dives[0], id: "three", number: 3, site: "Arch", country: "Spain" },
+    ],
+    "site",
+    "asc",
+  );
+  expect(grouped.map((group) => group.country)).toEqual(["France", "Spain"]);
+  expect(grouped[1].dives.map((dive) => dive.site)).toEqual(["Arch", "Wall"]);
 });
 
 it("filters mapped dives to the visible map bounds", () => {
@@ -70,6 +99,7 @@ describe("profile rendering", () => {
     expect(svg.getAttribute("role")).toBe("img");
     expect(svg.getAttribute("aria-label")).toBe("1 depth profile over dive time");
     expect(container.querySelectorAll("path")).toHaveLength(2);
+    expect(container.querySelectorAll(".profile-axis-label")).toHaveLength(10);
   });
 
   it("overlays multiple profiles with a legend", () => {
@@ -100,5 +130,6 @@ describe("profile rendering", () => {
     }));
     expect(() => renderProfileChart(container, largeSelection)).not.toThrow();
     expect(container.querySelectorAll(".profile-line")).toHaveLength(200);
+    expect(container.querySelectorAll(".profile-legend li")).toHaveLength(7);
   });
 });
