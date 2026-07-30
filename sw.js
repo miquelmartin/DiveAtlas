@@ -1,10 +1,11 @@
-const CACHE_NAME = "diveatlas-shell-v11";
+const CACHE_NAME = "diveatlas-shell-v13";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./manifest.webmanifest",
-  "./icons/diveatlas.svg",
+  "./icons/logo-192.png",
+  "./icons/logo.png",
   "./vendor/leaflet.css",
   "./vendor/leaflet.js",
   "./vendor/leaflet.markercluster.js",

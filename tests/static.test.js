@@ -11,6 +11,8 @@ describe("GitHub Pages and offline shell", () => {
     expect(references.filter((reference) => reference.startsWith("/"))).toEqual([]);
     expect(html).toContain('src="src/app.js"');
     expect(html).toContain('src="src/theme.js"');
+    expect(html).toContain('src="icons/logo-192.png"');
+    expect(html).toContain('rel="icon" href="icons/logo-192.png" type="image/png"');
     expect(html).toContain("Dive data stays on this device");
     expect(html).not.toContain("No dive data leaves this device");
     expect(html).not.toMatch(/<script[^>]+https?:/);
@@ -21,6 +23,20 @@ describe("GitHub Pages and offline shell", () => {
     const manifest = JSON.parse(await readFile(rootFile("manifest.webmanifest"), "utf8"));
     expect(manifest.start_url).toBe("./");
     expect(manifest.scope).toBe("./");
+    expect(manifest.icons).toEqual([
+      {
+        src: "icons/logo-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "icons/logo.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+    ]);
   });
 
   it("caches only relative application assets and every asset exists", async () => {

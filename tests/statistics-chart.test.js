@@ -39,10 +39,29 @@ describe("selected dive statistics", () => {
     );
 
     expect(container.querySelector(".donut-total").textContent).toBe("3");
+    expect(container.querySelector(".dive-type-summary h3").textContent).toBe(
+      "Decompression Dives",
+    );
     expect(container.querySelector(".dive-type-summary svg").getAttribute("aria-label")).toBe(
       "1 decompression, 1 no-decompression, and 1 unknown dives",
     );
     expect(container.querySelectorAll(".donut-segment")).toHaveLength(3);
+    expect([...container.querySelectorAll(".donut-segment title")].map((item) => item.textContent))
+      .toEqual([
+        "1 decompression dive",
+        "1 no-decompression dive",
+        "1 unknown dive",
+      ]);
+    expect(
+      [...container.querySelectorAll(".donut-segment")].map((item) => ({
+        tabindex: item.getAttribute("tabindex"),
+        label: item.getAttribute("aria-label"),
+      })),
+    ).toEqual([
+      { tabindex: "0", label: "1 decompression dive" },
+      { tabindex: "0", label: "1 no-decompression dive" },
+      { tabindex: "0", label: "1 unknown dive" },
+    ]);
     expect(container.querySelectorAll(".monthly-bar")).toHaveLength(2);
     expect([...container.querySelectorAll(".distribution-chart h3")].map((item) => item.textContent))
       .toEqual([
@@ -52,7 +71,7 @@ describe("selected dive statistics", () => {
         "Maximum CNS",
         "Maximum GF99",
       ]);
-    expect(container.querySelectorAll(".distribution-bar").length).toBeGreaterThan(0);
+    expect(container.querySelectorAll(".distribution-bar")).toHaveLength(50);
     expect(
       container.querySelector(".distribution-chart svg").getAttribute("aria-label"),
     ).toBe("Maximum depth distribution: 2 of 3 selected dives have data");
@@ -63,5 +82,14 @@ describe("selected dive statistics", () => {
     renderSelectionStatistics(container, [{ dateTime: "2025-01-01", decoDive: null }]);
     expect(container.querySelector(".donut-total").textContent).toBe("1");
     expect(container.querySelectorAll(".distribution-chart > p")).toHaveLength(5);
+  });
+
+  it("omits zero-count dive types from the legend", () => {
+    const container = document.createElement("div");
+    renderSelectionStatistics(container, [
+      { dateTime: "2025-01-01", decoDive: true },
+      { dateTime: "2025-01-02", decoDive: false },
+    ]);
+    expect(container.querySelector(".donut-legend").textContent).not.toContain("Unknown");
   });
 });

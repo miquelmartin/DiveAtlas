@@ -69,7 +69,7 @@ function renderDiveTypeDonut(dives) {
   const section = document.createElement("section");
   section.className = "dive-type-summary";
   const heading = document.createElement("h3");
-  heading.textContent = "Dive types";
+  heading.textContent = "Decompression Dives";
   const counts = [
     {
       key: "decompression",
@@ -106,18 +106,25 @@ function renderDiveTypeDonut(dives) {
   counts.forEach((item) => {
     if (!item.count) return;
     const percentage = (item.count / dives.length) * 100;
-    svg.append(
-      svgElement("circle", {
-        cx: 50,
-        cy: 50,
-        r: 32,
-        pathLength: 100,
-        "stroke-dasharray": `${percentage} ${100 - percentage}`,
-        "stroke-dashoffset": -offset,
-        transform: "rotate(-90 50 50)",
-        class: `donut-segment donut-${item.key}`,
-      }),
-    );
+    const segment = svgElement("circle", {
+      cx: 50,
+      cy: 50,
+      r: 32,
+      pathLength: 100,
+      "stroke-dasharray": `${percentage} ${100 - percentage}`,
+      "stroke-dashoffset": -offset,
+      transform: "rotate(-90 50 50)",
+      class: `donut-segment donut-${item.key}`,
+      role: "img",
+      tabindex: "0",
+    });
+    const title = svgElement("title");
+    title.textContent = `${item.count} ${item.label.toLowerCase()} dive${
+      item.count === 1 ? "" : "s"
+    }`;
+    segment.setAttribute("aria-label", title.textContent);
+    segment.append(title);
+    svg.append(segment);
     offset += percentage;
   });
   const total = svgElement("text", {
@@ -139,6 +146,7 @@ function renderDiveTypeDonut(dives) {
   const legend = document.createElement("ul");
   legend.className = "donut-legend";
   counts.forEach((item) => {
+    if (!item.count) return;
     const entry = document.createElement("li");
     const swatch = document.createElement("span");
     swatch.className = `donut-key donut-${item.key}`;
@@ -149,13 +157,12 @@ function renderDiveTypeDonut(dives) {
   return section;
 }
 
-function renderDistribution({ title, unit, values, selectedDiveCount }) {
+function renderDistribution({ title, unit, values, selectedDiveCount, lowerBound }) {
   const section = document.createElement("section");
   section.className = "distribution-chart";
   const heading = document.createElement("h3");
   heading.textContent = title;
-  const binCount = Math.min(10, Math.max(1, Math.ceil(Math.sqrt(values.length))));
-  const bins = histogramBins(values, binCount);
+  const bins = histogramBins(values, 10, { lowerBound });
   if (!bins.length) {
     const empty = document.createElement("p");
     empty.textContent = "No data";
@@ -241,6 +248,7 @@ export function renderSelectionStatistics(container, dives, { from = "", to = ""
       unit: "m",
       values: dives.map((dive) => dive.maxDepth).filter(Number.isFinite),
       selectedDiveCount: dives.length,
+      lowerBound: 0,
     },
     {
       title: "Duration",
@@ -250,6 +258,7 @@ export function renderSelectionStatistics(container, dives, { from = "", to = ""
         .filter(Number.isFinite)
         .map((duration) => duration / 60),
       selectedDiveCount: dives.length,
+      lowerBound: 0,
     },
     {
       title: "Minimum temperature",
@@ -262,12 +271,14 @@ export function renderSelectionStatistics(container, dives, { from = "", to = ""
       unit: "%",
       values: dives.map((dive) => dive.maxCns).filter(Number.isFinite),
       selectedDiveCount: dives.length,
+      lowerBound: 0,
     },
     {
       title: "Maximum GF99",
       unit: "%",
       values: dives.map((dive) => dive.maxGf99).filter(Number.isFinite),
       selectedDiveCount: dives.length,
+      lowerBound: 0,
     },
   ].forEach((definition) => distributions.append(renderDistribution(definition)));
   container.append(overview, distributions);

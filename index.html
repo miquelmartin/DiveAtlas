@@ -68,7 +68,8 @@
       content="Explore Shearwater UDDF dive logs privately in your browser."
     >
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="icon" href="icons/diveatlas.svg" type="image/svg+xml">
+    <link rel="icon" href="icons/logo-192.png" type="image/png">
+    <link rel="apple-touch-icon" href="icons/logo-192.png">
     <link rel="stylesheet" href="vendor/leaflet.css">
     <link rel="stylesheet" href="vendor/MarkerCluster.css">
     <link rel="stylesheet" href="vendor/MarkerCluster.Default.css">
@@ -80,7 +81,10 @@
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
     <header class="app-header">
-      <h1>DiveAtlas</h1>
+      <h1 class="app-brand">
+        <img src="icons/logo-192.png" alt="" width="36" height="36">
+        <span>DiveAtlas</span>
+      </h1>
       <div class="header-actions">
         <label class="theme-control">Theme
           <select id="theme-select">
