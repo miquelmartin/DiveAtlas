@@ -151,7 +151,7 @@ function renderMonthlyHistogram(dives, libraryDives, onSelectDives) {
   return section;
 }
 
-function renderDiveTypeDonut(dives, libraryDives) {
+function renderDiveTypeDonut(dives, libraryDives, onSelectDives) {
   const section = document.createElement("section");
   section.className = "dive-type-summary";
   const heading = document.createElement("h3");
@@ -210,13 +210,24 @@ function renderDiveTypeDonut(dives, libraryDives) {
       "stroke-dashoffset": -offset,
       transform: "rotate(-90 50 50)",
       class: `donut-segment donut-${item.key}`,
-      role: "img",
+      role: "button",
       tabindex: "0",
     });
     const title = svgElement("title");
     title.textContent = `${item.label} · All dives: ${item.count} · Selected dives: ${item.selectedCount}`;
     segment.setAttribute("aria-label", title.textContent);
     segment.append(title);
+    const matchingDives = libraryDives.filter((dive) => {
+      if (item.key === "decompression") return dive.decoDive === true;
+      if (item.key === "no-decompression") return dive.decoDive === false;
+      return dive.decoDive !== true && dive.decoDive !== false;
+    });
+    segment.addEventListener("click", () => onSelectDives(matchingDives));
+    segment.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      onSelectDives(matchingDives);
+    });
     svg.append(segment);
     if (item.selectedCount) {
       const selectedPercentage = (item.selectedCount / libraryDives.length) * 100;
@@ -339,7 +350,13 @@ function scatterTooltipText(dive) {
   )} min · ${dive.maxDepth.toFixed(1)} m`;
 }
 
-function renderDepthDurationScatter(dives, libraryDives, durationMaximum, depthMaximum) {
+function renderDepthDurationScatter(
+  dives,
+  libraryDives,
+  durationMaximum,
+  depthMaximum,
+  onSelectDives,
+) {
   const section = document.createElement("section");
   section.className = "depth-duration-scatter scatter-chart";
   const heading = document.createElement("h3");
@@ -380,7 +397,7 @@ function renderDepthDurationScatter(dives, libraryDives, durationMaximum, depthM
     const point = svgElement("circle", {
       cx: x,
       cy: y,
-      r: 3.5,
+      r: 2.25,
       class: selected ? "scatter-point scatter-point-selected" : "scatter-point scatter-point-all",
     });
     if (!interactive) {
@@ -395,8 +412,8 @@ function renderDepthDurationScatter(dives, libraryDives, durationMaximum, depthM
       r: 8,
       class: "scatter-hit-area",
       tabindex: "0",
-      role: "img",
-      "aria-label": tooltipText,
+      role: "button",
+      "aria-label": `${tooltipText} · Select this dive`,
     });
     const title = svgElement("title");
     title.textContent = tooltipText;
@@ -414,6 +431,12 @@ function renderDepthDurationScatter(dives, libraryDives, durationMaximum, depthM
     hitArea.addEventListener("pointerleave", hideTooltip);
     hitArea.addEventListener("focus", showTooltip);
     hitArea.addEventListener("blur", hideTooltip);
+    hitArea.addEventListener("click", () => onSelectDives([dive]));
+    hitArea.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      onSelectDives([dive]);
+    });
     group.append(point, hitArea);
     svg.append(group);
   };
@@ -526,12 +549,10 @@ export function renderSelectionStatistics(
     item.append(swatch, document.createTextNode(label));
     legend.append(item);
   });
-  const charts = document.createElement("div");
-  charts.className = "selection-grid";
-  charts.append(
+  const charts = [
     renderMonthlyHistogram(dives, libraryDives, onSelectDives),
-    renderDiveTypeDonut(dives, libraryDives),
-  );
+    renderDiveTypeDonut(dives, libraryDives, onSelectDives),
+  ];
   [
     {
       title: "Maximum depth",
@@ -597,7 +618,15 @@ export function renderSelectionStatistics(
       valueForDive: (dive) => dive.maxGf99,
       onSelectDives,
     },
-  ].forEach((definition) => charts.append(renderDistribution(definition)));
-  charts.append(renderDepthDurationScatter(dives, libraryDives, durationMaximum, depthMaximum));
-  container.append(charts, legend);
+  ].forEach((definition) => charts.push(renderDistribution(definition)));
+  charts.push(
+    renderDepthDurationScatter(
+      dives,
+      libraryDives,
+      durationMaximum,
+      depthMaximum,
+      onSelectDives,
+    ),
+  );
+  container.append(...charts, legend);
 }

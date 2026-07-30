@@ -90,13 +90,11 @@
         <span>DiveAtlas</span>
       </h1>
       <div class="header-actions">
-        <label class="theme-control">Theme
-          <select id="theme-select">
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </label>
+        <div class="theme-control" role="group" aria-label="Theme">
+          <button type="button" data-theme-choice="system" aria-pressed="true">Auto</button>
+          <button type="button" data-theme-choice="light" aria-pressed="false">Light</button>
+          <button type="button" data-theme-choice="dark" aria-pressed="false">Dark</button>
+        </div>
         <nav class="workspace-tabs" aria-label="Workspaces">
           <button class="tab" type="button" data-workspace="data" aria-controls="data-workspace" aria-selected="false">Data</button>
           <button class="tab" type="button" data-workspace="view" aria-controls="view-workspace" aria-selected="false">View</button>
@@ -108,6 +106,7 @@
       <section id="data-workspace" class="workspace" aria-label="Data workspace" hidden>
         <div class="section-heading compact-heading">
           <p class="privacy-chip">Dive data stays on this device</p>
+          <button id="clear-all-data" class="danger danger-filled" type="button">Clear all data</button>
         </div>
 
         <section class="card import-card" aria-labelledby="import-heading">
@@ -116,7 +115,6 @@
               <h3 id="import-heading">Add data</h3>
               <p>Import dive logs and coordinate mappings through separate, explicit workflows.</p>
             </div>
-            <span class="step-badge">01</span>
           </div>
           <div class="import-grid">
             <section class="import-panel" aria-labelledby="dive-import-heading">
@@ -148,11 +146,7 @@
                 <input id="coordinate-file" type="file" accept=".csv,text/csv">
               </label>
               <p id="coordinate-selection-status" class="selection-status" aria-live="polite">No coordinate file selected.</p>
-              <fieldset class="inline-options">
-                <legend>Coordinate table behavior</legend>
-                <label><input type="radio" name="mapping-mode" value="merge" checked> Merge, retaining stored conflicts</label>
-                <label><input type="radio" name="mapping-mode" value="replace"> Replace the coordinate table</label>
-              </fieldset>
+              <p>New rows are merged into the coordinate table. Matching rows replace older coordinates.</p>
               <div id="coordinate-import-results" class="results" aria-live="polite"></div>
             </section>
           </div>
@@ -165,41 +159,41 @@
           <article class="metric"><span>Coordinates</span><strong id="mapping-count">0</strong></article>
         </section>
 
-        <section class="card" aria-labelledby="mapping-heading">
-          <div class="card-heading">
-            <div><h3 id="mapping-heading">Known locations</h3><p>Sites are grouped by location. Matching ignores case and extra whitespace.</p></div>
-            <span class="step-badge">02</span>
-          </div>
-          <div class="table-toolbar">
-            <label>Search mappings <input id="mapping-search" type="search" placeholder="Location or site"></label>
-            <button id="remove-mappings" class="danger" type="button" disabled>Remove selected</button>
-          </div>
-          <div class="table-scroll">
-            <table>
-              <thead><tr><th scope="col"><input id="select-all-mappings" type="checkbox" aria-label="Select all visible mappings"></th><th scope="col">Location / Site</th><th scope="col">Country</th><th scope="col">Latitude</th><th scope="col">Longitude</th><th scope="col">Confidence</th></tr></thead>
-              <tbody id="mapping-table-body"></tbody>
-            </table>
-          </div>
-          <p id="mapping-empty" class="empty-state">No coordinate mappings imported yet.</p>
-        </section>
+        <div class="data-table-grid">
+          <section class="card" aria-labelledby="mapping-heading">
+            <div class="card-heading">
+              <div><h3 id="mapping-heading">Known locations</h3><p>Sites are grouped by location. Matching ignores case and extra whitespace.</p></div>
+            </div>
+            <div class="table-toolbar">
+              <label>Search mappings <input id="mapping-search" type="search" placeholder="Location or site"></label>
+              <button id="remove-mappings" class="danger" type="button" disabled>Remove selected</button>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th scope="col"><input id="select-all-mappings" type="checkbox" aria-label="Select all visible mappings"></th><th scope="col">Location / Site</th><th scope="col">Country</th><th scope="col">Latitude</th><th scope="col">Longitude</th><th scope="col">Confidence</th></tr></thead>
+                <tbody id="mapping-table-body"></tbody>
+              </table>
+            </div>
+            <p id="mapping-empty" class="empty-state">No coordinate mappings imported yet.</p>
+          </section>
 
-        <section class="card" aria-labelledby="dives-heading">
-          <div class="card-heading">
-            <div><h3 id="dives-heading">Imported dives</h3><p>Search, inspect, and remove dives with their profile samples.</p></div>
-            <span class="step-badge">03</span>
-          </div>
-          <div class="table-toolbar">
-            <label>Search dives <input id="dive-search" type="search" placeholder="Site, location, date, number"></label>
-            <button id="remove-dives" class="danger" type="button" disabled>Remove selected</button>
-          </div>
-          <div class="table-scroll">
-            <table>
-              <thead><tr><th scope="col"><input id="select-all-dives" type="checkbox" aria-label="Select all visible dives"></th><th scope="col">Dive</th><th scope="col">Date</th><th scope="col">Location / Site</th><th scope="col">Depth</th><th scope="col">Status</th></tr></thead>
-              <tbody id="dive-table-body"></tbody>
-            </table>
-          </div>
-          <p id="dive-empty" class="empty-state">No dives imported yet.</p>
-        </section>
+          <section class="card" aria-labelledby="dives-heading">
+            <div class="card-heading">
+              <div><h3 id="dives-heading">Imported dives</h3><p>Search, inspect, and remove dives with their profile samples.</p></div>
+            </div>
+            <div class="table-toolbar">
+              <label>Search dives <input id="dive-search" type="search" placeholder="Site, location, date, number"></label>
+              <button id="remove-dives" class="danger" type="button" disabled>Remove selected</button>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th scope="col"><input id="select-all-dives" type="checkbox" aria-label="Select all visible dives"></th><th scope="col">Dive</th><th scope="col">Date</th><th scope="col">Location / Site</th><th scope="col">Depth</th><th scope="col">Status</th></tr></thead>
+                <tbody id="dive-table-body"></tbody>
+              </table>
+            </div>
+            <p id="dive-empty" class="empty-state">No dives imported yet.</p>
+          </section>
+        </div>
 
         <div class="two-column">
           <section class="card" aria-labelledby="unmatched-heading">
@@ -221,7 +215,6 @@
         <section class="card" aria-labelledby="backup-heading">
           <div class="card-heading">
             <div><h3 id="backup-heading">Backup and restore</h3><p>Download a versioned copy of normalized dives, profiles, mappings, and import history.</p></div>
-            <span class="step-badge">04</span>
           </div>
           <div class="button-row">
             <button id="download-backup" class="primary" type="button">Download backup</button>
@@ -247,6 +240,18 @@
         <div class="view-dashboard">
           <section class="dashboard-pane dive-list-pane" aria-label="Filtered dives">
             <div class="dive-list-controls">
+              <fieldset class="dive-control-section dive-filter-controls">
+                <legend>Filters</legend>
+                <button id="clear-filters" class="clear-filters-button" type="button"><span aria-hidden="true">×</span> Clear filters</button>
+                <label class="view-keyword">Keyword <input id="view-search" type="search" placeholder="Site, location, date, number"></label>
+                <div class="view-thresholds">
+                  <label>Deeper than <span><input id="min-depth" type="number" min="0" step="1" inputmode="decimal" value="0"> m</span></label>
+                  <label>Longer than <span><input id="min-duration" type="number" min="0" step="1" inputmode="decimal" value="0"> min</span></label>
+                </div>
+                <label><input id="show-outside-map" type="checkbox" disabled> Show dives outside the map</label>
+                <label id="plot-selection-control" hidden><input id="filter-plot-selection" type="checkbox"> Dives selected in the plots</label>
+                <p id="view-result-count">0 dives</p>
+              </fieldset>
               <fieldset class="dive-control-section">
                 <legend>Select</legend>
                 <div class="dive-selection-actions" role="group" aria-label="Select dives">
@@ -254,17 +259,6 @@
                   <button id="select-list-dives" type="button" disabled>All</button>
                   <button id="clear-view-dives" type="button" disabled>None</button>
                 </div>
-              </fieldset>
-              <fieldset class="dive-control-section dive-filter-controls">
-                <legend>Filters</legend>
-                <button id="clear-filters" class="icon-button" type="button" aria-label="Clear filters" title="Clear filters">×</button>
-                <label class="view-keyword">Keyword <input id="view-search" type="search" placeholder="Site, location, date, number"></label>
-                <div class="view-thresholds">
-                  <label>Deeper than <span><input id="min-depth" type="number" min="0" step="1" inputmode="decimal" value="0"> m</span></label>
-                  <label>Longer than <span><input id="min-duration" type="number" min="0" step="1" inputmode="decimal" value="0"> min</span></label>
-                </div>
-                <label><input id="show-outside-map" type="checkbox" disabled> Show dives outside the map</label>
-                <p id="view-result-count">0 dives</p>
               </fieldset>
             </div>
             <div class="dive-list-header" aria-label="Sort dives">
@@ -286,10 +280,12 @@
             </div>
           </section>
           <section class="dashboard-pane profile-pane" aria-label="Selected dive profiles and details">
-            <p id="selection-empty" class="selection-empty">Select a dive from the list or map.</p>
-            <div id="profile-chart" class="profile-chart" hidden></div>
-            <div id="selection-stats" class="selection-stats" hidden></div>
             <div id="dive-detail" class="dive-detail" hidden></div>
+            <div class="plots-grid">
+              <p id="selection-empty" class="selection-empty">Select a dive from the list or map.</p>
+              <div id="profile-chart" class="profile-chart" hidden></div>
+              <div id="selection-stats" class="selection-stats" hidden></div>
+            </div>
           </section>
         </div>
       </section>

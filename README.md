@@ -7,7 +7,7 @@ DiveAtlas is a static, privacy-focused dive log for Shearwater-style UDDF 3.2 ex
 - Incremental, cancellable multi-file import with SHA-256 source hashing and worker-assisted file processing
 - Stable dive identities, exact duplicate skipping, and conflict reporting without silent overwrite
 - Searchable, selectable dive and coordinate tables with atomic dependent-data removal
-- Case-insensitive Location/Site matching, actionable unmatched-site reporting, and merge/replace coordinate controls
+- Case-insensitive Location/Site matching, actionable unmatched-site reporting, and additive coordinate imports where the newest matching row wins
 - Dense exploration dashboard with a clustered satellite map, optional street/seamark layers, viewport and date-range filtering, a flat sortable dive table with muted out-of-map reveal, and overlaid native SVG profiles with metadata tooltips
 - System-aware light/dark theme with an on-device user override
 - Versioned JSON backup with validated merge or transactional replace restore
@@ -33,7 +33,7 @@ npm run check
 ## Import workflow
 
 1. Open **Data → Import dives** and choose or drop one or hundreds of `.uddf` files. The selected count and names appear immediately and import starts automatically.
-2. Use **Import coordinates** separately to choose or drop one `.csv`; it imports immediately using the selected merge or replace behavior.
+2. Use **Import coordinates** separately to choose or drop one `.csv`; it merges immediately, adding new sites and replacing matching stored coordinates with the newest row.
 3. Dive files are read one at a time, the page yields between files, and cancellation stops before the next file.
 4. Review every file result and any duplicate, invalid, or conflict details. A bad file does not block valid files.
 5. Inspect unmatched sites, then use **View** to filter by minimum depth, duration, date range, or map viewport; click dive markers or rows to compare profiles.
@@ -52,7 +52,7 @@ The header row must contain:
 | `Longitude` | Required number from -180 through 180 |
 | `Confidence` | Optional; blank or absent defaults to `Exact` |
 
-Additional columns are accepted and ignored. Header and field whitespace is trimmed. Matching uses trimmed, whitespace-normalized, case-insensitive `Location + Site` keys while preserving the first row's display text. Duplicate keys are reported. Conflicting coordinates are reported and never silently overwrite the first or stored row. DiveAtlas infers an English country name from the coordinates using a locally bundled, approximate country-boundary dataset and stores it with the mapping. Offshore points outside that dataset are labeled `International waters / unassigned`.
+Additional columns are accepted and ignored. Header and field whitespace is trimmed. Matching uses trimmed, whitespace-normalized, case-insensitive `Location + Site` keys while preserving display text. Duplicate or conflicting rows within one CSV are reported. On import, a matching stored key is explicitly reported and replaced by the newest valid CSV row. DiveAtlas infers an English country name from the coordinates using a locally bundled, approximate country-boundary dataset and stores it with the mapping. Offshore points outside that dataset are labeled `International waters / unassigned`.
 
 ```csv
 Location,Site,Latitude,Longitude,Confidence,Notes
@@ -62,7 +62,7 @@ Location,Site,Latitude,Longitude,Confidence,Notes
 
 ## Local storage and backups
 
-Dives, profile samples, coordinate mappings, import history, and settings use a versioned IndexedDB schema. Profile samples live in a separate store so browsing and filtering hundreds of dives does not load every sample into memory. A dive deletion removes metadata, profile samples, and dependent import history in one transaction.
+Dives, profile samples, coordinate mappings, import history, and settings use a versioned IndexedDB schema. Profile samples live in a separate store so browsing and filtering hundreds of dives does not load every sample into memory. A dive deletion removes metadata, profile samples, and dependent import history in one transaction. **Clear all data** clears every application store in one transaction after confirmation.
 
 Reloading the same origin and browser profile restores the library. Clearing browser site data removes it. Private browsing may be temporary, and storage eviction policy is browser-specific. Use **Request persistent storage** where supported.
 

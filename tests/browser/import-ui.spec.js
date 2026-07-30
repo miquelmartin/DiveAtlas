@@ -18,7 +18,10 @@ async function openProductionShell(page) {
   await expect(page.locator("#dive-selection-status")).toHaveText(
     "No dive files selected.",
   );
-  await expect(page.locator("#theme-select")).toHaveValue("system");
+  await expect(page.getByRole("button", { name: "Auto" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await expect(page.locator(".app-brand img")).toHaveJSProperty("complete", true);
   expect(await page.locator(".app-brand img").evaluate((image) => image.naturalWidth)).toBe(192);
   return errors;
@@ -41,31 +44,93 @@ test("dedicated file pickers show selection, results, and refreshed tables", asy
     "mappings.csv selected",
   );
   await expect(page.locator("#coordinate-import-results")).toContainText(
-    "2 mapping(s) imported",
+    "2 mapping(s) added",
   );
   await expect(page.locator("#mapping-count")).toHaveText("2");
   await expect(page.locator("#mapping-table-body")).toContainText("Blue Wall");
   await expect(page.locator("#mapping-table-body")).toContainText("Spain");
-  const dataCardHeadings = await page.locator("#data-workspace > .card h3").allTextContents();
+  const dataCardHeadings = await page.locator(".data-table-grid > .card h3").allTextContents();
   expect(dataCardHeadings.indexOf("Known locations")).toBeLessThan(
     dataCardHeadings.indexOf("Imported dives"),
   );
+  const tableCards = await page.locator(".data-table-grid > .card").evaluateAll((cards) =>
+    cards.map((card) => card.getBoundingClientRect().top),
+  );
+  expect(Math.abs(tableCards[0] - tableCards[1])).toBeLessThan(2);
+  await page.locator("#coordinate-file").setInputFiles({
+    name: "updated-mappings.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      'Location,Site,Latitude,Longitude\n"Example Island, Test Region",Blue Wall,1.23456,2.34567\n',
+    ),
+  });
+  await expect(page.locator("#coordinate-import-results")).toContainText(
+    "1 existing mapping(s) updated",
+  );
+  await expect(page.locator("#mapping-table-body")).toContainText("1.23456");
 
   await page.locator("#dive-files").setInputFiles(malformed);
   await expect(page.locator("#dive-import-results")).toContainText("malformed XML");
   await page.getByRole("button", { name: "View" }).click();
   await expect(page.locator(".leaflet-marker-icon")).toHaveCount(1);
-  await page.locator("#theme-select").selectOption("dark");
+  await page.getByRole("button", { name: "Dark" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   expect(await page.evaluate(() => localStorage.getItem("diveatlas-theme"))).toBe("dark");
   await page.reload();
-  await expect(page.locator("#theme-select")).toHaveValue("dark");
+  await expect(page.getByRole("button", { name: "Dark" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.locator("#view-workspace")).toBeVisible();
   await expect(page.getByRole("button", { name: "View" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".leaflet-marker-icon")).toHaveCount(1);
-  await page.locator("#theme-select").selectOption("system");
+  await page.getByRole("button", { name: "Auto" }).click();
   expect(await page.evaluate(() => localStorage.getItem("diveatlas-theme"))).toBeNull();
+  await page.getByRole("button", { name: "Data" }).click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Clear all data" }).click();
+  await expect(page.locator("#data-workspace")).toBeVisible();
+  await expect(page.locator("#dive-count")).toHaveText("0");
+  await expect(page.locator("#mapping-count")).toHaveText("0");
+  expect(errors).toEqual([]);
+});
+
+test("mobile file selection imports and the three view panels stack", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const errors = await openProductionShell(page);
+  const pickerGeometry = await page.locator("#dive-drop-zone").evaluate((zone) => {
+    const input = zone.querySelector("input");
+    const zoneBox = zone.getBoundingClientRect();
+    const inputBox = input.getBoundingClientRect();
+    return {
+      widthDifference: Math.abs(zoneBox.width - inputBox.width),
+      heightDifference: Math.abs(zoneBox.height - inputBox.height),
+    };
+  });
+  expect(pickerGeometry.widthDifference).toBeLessThanOrEqual(2);
+  expect(pickerGeometry.heightDifference).toBeLessThanOrEqual(2);
+
+  await page.locator("#dive-files").setInputFiles(representative);
+  await expect(page.locator("#dive-import-results")).toContainText("1 dive(s) imported");
+  await page.locator("#coordinate-file").setInputFiles(mappings);
+  await expect(page.locator("#coordinate-import-results")).toContainText("2 mapping(s) added");
+  const dataColumns = await page.locator(".data-table-grid").evaluate(
+    (grid) => getComputedStyle(grid).gridTemplateColumns.split(" ").length,
+  );
+  expect(dataColumns).toBe(1);
+
+  await page.getByRole("button", { name: "View" }).click();
+  const panels = await page.locator(".view-dashboard > .dashboard-pane").evaluateAll((items) =>
+    items.map((item) => item.getBoundingClientRect()).map(({ top, left, right }) => ({
+      top,
+      left,
+      right,
+    })),
+  );
+  expect(panels[0].top).toBeLessThan(panels[1].top);
+  expect(panels[1].top).toBeLessThan(panels[2].top);
+  expect(panels.every((panel) => panel.left >= 0 && panel.right <= 390)).toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -199,6 +264,7 @@ test("coincident dive clusters spiderfy for individual selection", async ({ page
 });
 
 test("dense dashboard clusters dives, filters the map, and compares profiles", async ({ page }) => {
+  test.setTimeout(180_000);
   const errors = await openProductionShell(page);
   const first = await readFile(representative, "utf8");
   const second = first
@@ -291,16 +357,24 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   const showOutsideMap = page.getByRole("checkbox", { name: "Show dives outside the map" });
   const selectionActions = page.getByRole("group", { name: "Select dives" });
   const resetFilters = page.getByRole("button", { name: "Clear filters" });
-  await expect(page.locator(".dive-control-section legend")).toHaveText(["Select", "Filters"]);
-  await expect(resetFilters).toHaveText("×");
+  await expect(page.locator(".dive-control-section legend")).toHaveText(["Filters", "Select"]);
+  await expect(resetFilters).toContainText("Clear filters");
   const selectionButtonHeight = await selectionActions.getByRole("button", { name: "Map" }).evaluate(
     (button) => button.getBoundingClientRect().height,
   );
-  const resetButtonWidth = await resetFilters.evaluate((button) => button.getBoundingClientRect().width);
+  const resetPosition = await resetFilters.evaluate((button) => {
+    const buttonBox = button.getBoundingClientRect();
+    const filterBox = button.closest("fieldset").getBoundingClientRect();
+    const firstInput = button.closest("fieldset").querySelector("input").getBoundingClientRect();
+    return {
+      nearTop: buttonBox.top < firstInput.top,
+      nearRight: filterBox.right - buttonBox.right < 10,
+    };
+  });
   expect(selectionButtonHeight).toBeLessThan(24);
-  expect(resetButtonWidth).toBeLessThan(32);
+  expect(resetPosition).toEqual({ nearTop: true, nearRight: true });
   await expect(page.locator(".dive-filter-controls #show-outside-map")).toHaveCount(1);
-  await expect(page.locator(".dive-control-section:first-child #show-outside-map")).toHaveCount(0);
+  await expect(page.locator(".dive-control-section:first-child #show-outside-map")).toHaveCount(1);
   const filterLayout = await page.locator(".dive-filter-controls").evaluate((filters) => {
     const keyword = filters.querySelector(".view-keyword input");
     const thresholdLabels = [...filters.querySelectorAll(".view-thresholds label")];
@@ -339,7 +413,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     0,
   );
   await expect(page.locator("#selection-stats")).toBeVisible();
-  await expect(page.locator(".selection-grid > section")).toHaveCount(8);
+  await expect(page.locator("#selection-stats > section")).toHaveCount(8);
   await expect(page.locator(".scatter-point-all")).toHaveCount(3);
   await expect(page.locator(".scatter-point-selected")).toHaveCount(0);
   await expect(page.locator(".donut-selection-segment")).toHaveCount(0);
@@ -394,7 +468,8 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.getByRole("heading", { name: "Maximum GF99" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Depth Profile" })).toBeVisible();
   const statisticsLayout = await page.locator("#selection-stats").evaluate((container) => {
-    const background = getComputedStyle(container).backgroundColor;
+    const plotGrid = container.closest(".plots-grid");
+    const background = getComputedStyle(plotGrid).backgroundColor;
     const profileBackground = getComputedStyle(
       document.querySelector("#profile-chart > svg"),
     ).backgroundColor;
@@ -405,18 +480,19 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     const profileChart = document.querySelector("#profile-chart");
     const profileSvg = profileChart.querySelector("svg").getBoundingClientRect();
     const profileStyle = getComputedStyle(profileChart);
-    const plotGrid = container.querySelector(".selection-grid");
+    const profileRect = profileChart.getBoundingClientRect();
+    const detailRect = document.querySelector("#dive-detail").getBoundingClientRect();
     return {
       background,
       profileBackground,
       distributionBackground: getComputedStyle(distribution).backgroundColor,
       overviewColumnsAligned: Math.abs(diveTypes.width - monthly.width) < 2,
       legendFits: legend.scrollWidth <= legend.clientWidth,
-      chartCount: container.querySelectorAll(".selection-grid > section").length,
+      chartCount: container.querySelectorAll(":scope > section").length,
       legendAfterPlots:
         container.querySelector(".histogram-legend") === container.lastElementChild &&
         container.querySelector(".histogram-legend").getBoundingClientRect().right <=
-          container.getBoundingClientRect().right,
+          plotGrid.getBoundingClientRect().right,
       histogramWidthRatio: (() => {
         const svg = distribution.querySelector("svg");
         const bars = [...svg.querySelectorAll(".histogram-bar-all")];
@@ -429,7 +505,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
       ),
       borderlessCharts: [
         document.querySelector("#profile-chart > svg"),
-        ...container.querySelectorAll(".selection-grid > section"),
+        ...container.querySelectorAll(":scope > section"),
       ].every((element) => getComputedStyle(element).borderTopWidth === "0px"),
       unifiedStatisticsPanel: getComputedStyle(container).borderTopWidth === "0px",
       equalBarWidths: [...container.querySelectorAll(".histogram-bar-all")].every(
@@ -445,6 +521,9 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
       scatterHeight: container.querySelector(".scatter-chart svg").getBoundingClientRect().height,
       donutHeight: container.querySelector(".dive-type-summary svg").getBoundingClientRect().height,
       plotGap: Number.parseFloat(getComputedStyle(plotGrid).columnGap),
+      profileSpansGrid: profileRect.width > monthly.width * 1.8,
+      detailsAboveProfile: detailRect.bottom <= profileRect.top,
+      profileDoesNotOverlapPlots: profileRect.bottom <= monthly.top,
       profileWidthRatio:
         profileSvg.width /
         (profileChart.clientWidth -
@@ -473,6 +552,9 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   expect(statisticsLayout.scatterHeight).toBeGreaterThan(150);
   expect(statisticsLayout.donutHeight).toBeGreaterThan(80);
   expect(statisticsLayout.plotGap).toBeGreaterThanOrEqual(10);
+  expect(statisticsLayout.profileSpansGrid).toBe(true);
+  expect(statisticsLayout.detailsAboveProfile).toBe(true);
+  expect(statisticsLayout.profileDoesNotOverlapPlots).toBe(true);
   expect(statisticsLayout.profileWidthRatio).toBeGreaterThan(0.98);
   expect(statisticsLayout.profileAspectRatio).toBeCloseTo(720 / 280, 1);
   expect(statisticsLayout.profileHeight).toBeLessThan(250);
@@ -508,6 +590,19 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     .click();
   await expect(page.locator("#dive-detail")).toContainText("4 dives selected");
   await expect(page.locator(".marker-cluster.all-selected-dives")).toHaveCount(1);
+  await expect(page.locator("#plot-selection-control")).toBeVisible();
+  await expect(page.locator("#filter-plot-selection")).toBeChecked();
+  await page.locator("#filter-plot-selection").uncheck();
+  await expect(page.locator(".dive-row")).toHaveCount(3);
+  await page.locator(".donut-segment.donut-decompression").click({
+    position: { x: 61, y: 32 },
+  });
+  await expect(page.locator("#dive-detail")).toContainText("3 dives selected");
+  await expect(page.locator("#filter-plot-selection")).toBeChecked();
+  await page.locator("#filter-plot-selection").uncheck();
+  await page.locator(".scatter-hit-area").last().click();
+  await expect(page.locator("#filter-plot-selection")).toBeChecked();
+  await expect(page.locator("#dive-detail dl")).toBeVisible();
   const firstMonthlyBin = page.locator(".monthly-histogram .histogram-hit-area").first();
   await firstMonthlyBin.hover();
   await expect(page.locator(".monthly-histogram .histogram-tooltip")).toContainText("All dives:");
@@ -678,7 +773,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator(".dive-country")).toHaveText(["France", "France", "Japan"]);
   const chartBoxAfterSort = await page.locator("#profile-chart").boundingBox();
   const detailBox = await page.locator("#dive-detail").boundingBox();
-  expect(chartBoxAfterSort.y).toBeLessThan(detailBox.y);
+  expect(detailBox.y).toBeLessThan(chartBoxAfterSort.y);
   expect(await page.locator(".tagline").count()).toBe(0);
   expect(errors).toEqual([]);
 });

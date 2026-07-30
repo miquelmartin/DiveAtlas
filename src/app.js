@@ -1,5 +1,6 @@
 import {
   applyMappings,
+  clearLibrary,
   getAll,
   getRecord,
   openDatabase,
@@ -26,6 +27,8 @@ const state = {
   selectedMappings: new Set(),
   expandedMappingLocations: new Set(),
   selectedViewDives: new Set(),
+  plotSelectedDives: new Set(),
+  plotSelectionActive: false,
   mapBounds: null,
   showOutsideMap: false,
   cancelled: false,
@@ -77,7 +80,7 @@ const elements = Object.fromEntries(
     "backup-file",
     "restore-backup",
     "backup-status",
-    "theme-select",
+    "clear-all-data",
     "view-search",
     "min-depth",
     "min-duration",
@@ -87,6 +90,8 @@ const elements = Object.fromEntries(
     "date-range-label",
     "clear-filters",
     "show-outside-map",
+    "plot-selection-control",
+    "filter-plot-selection",
     "select-map-dives",
     "select-list-dives",
     "clear-view-dives",
@@ -223,6 +228,7 @@ async function handleDiveImport() {
   }
   state.cancelled = false;
   state.diveImporting = true;
+  updateClearAllDataButton();
   setDiveFiles(files);
   elements["dive-files"].disabled = true;
   elements["cancel-dive-import"].disabled = false;
@@ -250,6 +256,7 @@ async function handleDiveImport() {
       `Dive import failed: ${error instanceof Error ? error.message : String(error)}`;
   } finally {
     state.diveImporting = false;
+    updateClearAllDataButton();
     elements["dive-files"].disabled = false;
     elements["cancel-dive-import"].disabled = true;
     setDiveFiles(files);
@@ -268,12 +275,13 @@ async function handleCoordinateImport() {
     return;
   }
   state.coordinateImporting = true;
+  updateClearAllDataButton();
   setCoordinateFiles([file]);
   elements["coordinate-file"].disabled = true;
   elements["coordinate-selection-status"].textContent = `Importing ${file.name}…`;
   try {
     const outcome = await importSources([file], {
-      mappingMode: selectedRadio("mapping-mode"),
+      mappingMode: "merge",
     });
     renderImportResults(elements["coordinate-import-results"], outcome.results);
     await refreshLibrary();
@@ -282,6 +290,7 @@ async function handleCoordinateImport() {
       `Coordinate import failed: ${error instanceof Error ? error.message : String(error)}`;
   } finally {
     state.coordinateImporting = false;
+    updateClearAllDataButton();
     elements["coordinate-file"].disabled = false;
     setCoordinateFiles([file]);
   }
@@ -490,12 +499,15 @@ function dateRangeFilters() {
 
 function currentViewDives() {
   const dates = dateRangeFilters();
-  return filterDives(state.dives, {
+  const filtered = filterDives(state.dives, {
     ...dates,
     search: elements["view-search"].value,
     minDepth: elements["min-depth"].value,
     minDuration: elements["min-duration"].value,
   });
+  return state.plotSelectionActive
+    ? filtered.filter((dive) => state.plotSelectedDives.has(dive.id))
+    : filtered;
 }
 
 function selectedDateExtent() {
@@ -517,7 +529,10 @@ function renderSelectionStats() {
     ...selectedDateExtent(),
     libraryDives: state.dives,
     onSelectDives: (selectedDives) => {
-      void selectViewDives(selectedDives.map((dive) => dive.id), { fitMap: true });
+      void selectViewDives(selectedDives.map((dive) => dive.id), {
+        fitMap: true,
+        fromPlot: true,
+      });
     },
   });
 }
@@ -593,16 +608,24 @@ async function renderSelectedDiveDetails() {
 }
 
 async function toggleViewDives(ids) {
+  const clearedPlotSelection = clearPlotSelection();
   const allSelected = ids.every((id) => state.selectedViewDives.has(id));
   ids.forEach((id) =>
     allSelected ? state.selectedViewDives.delete(id) : state.selectedViewDives.add(id),
   );
   await renderSelectedDiveDetails();
-  renderView({ updateMap: false });
+  if (clearedPlotSelection) state.mapBounds = null;
+  renderView({ updateMap: clearedPlotSelection, fitMap: clearedPlotSelection });
 }
 
-async function selectViewDives(ids, { fitMap = false } = {}) {
+async function selectViewDives(ids, { fitMap = false, fromPlot = false } = {}) {
   state.selectedViewDives = new Set(ids);
+  if (fromPlot && ids.length) {
+    state.plotSelectedDives = new Set(ids);
+    state.plotSelectionActive = true;
+  } else {
+    clearPlotSelection();
+  }
   if (fitMap) state.mapBounds = null;
   renderView({
     updateMap: fitMap,
@@ -610,6 +633,19 @@ async function selectViewDives(ids, { fitMap = false } = {}) {
     mapDiveIds: fitMap ? state.selectedViewDives : null,
   });
   await renderSelectedDiveDetails();
+}
+
+function clearPlotSelection() {
+  const changed = state.plotSelectionActive || state.plotSelectedDives.size > 0;
+  state.plotSelectedDives.clear();
+  state.plotSelectionActive = false;
+  return changed;
+}
+
+function updatePlotSelectionControl() {
+  const hasPlotSelection = state.plotSelectedDives.size > 0;
+  elements["plot-selection-control"].hidden = !hasPlotSelection;
+  elements["filter-plot-selection"].checked = state.plotSelectionActive;
 }
 
 function currentMapDives() {
@@ -655,6 +691,7 @@ function renderView({ updateMap = true, fitMap = false, mapDiveIds = null } = {}
       : `${dives.length} dive${dives.length === 1 ? "" : "s"}`;
   elements["show-outside-map"].disabled = outsideCount === 0;
   elements["show-outside-map"].checked = showOutside;
+  updatePlotSelectionControl();
   elements["select-map-dives"].disabled = currentMapDives().length === 0;
   elements["select-list-dives"].disabled = dives.length === 0;
   elements["clear-view-dives"].disabled = state.selectedViewDives.size === 0;
@@ -768,6 +805,10 @@ function updateRemovalButtons() {
   elements["remove-mappings"].disabled = state.selectedMappings.size === 0;
 }
 
+function updateClearAllDataButton() {
+  elements["clear-all-data"].disabled = state.diveImporting || state.coordinateImporting;
+}
+
 async function updateStorageStatus() {
   if (!navigator.storage) {
     elements["storage-usage"].textContent = "Not reported by this browser";
@@ -797,6 +838,10 @@ async function refreshLibrary() {
   state.selectedViewDives = new Set(
     [...state.selectedViewDives].filter((id) => diveIds.has(id)),
   );
+  state.plotSelectedDives = new Set(
+    [...state.plotSelectedDives].filter((id) => diveIds.has(id)),
+  );
+  if (!state.plotSelectedDives.size) state.plotSelectionActive = false;
   state.mapBounds = null;
   configureDateRange();
   renderSummary();
@@ -809,9 +854,17 @@ async function refreshLibrary() {
 }
 
 function registerEvents() {
-  elements["theme-select"].value = globalThis.diveAtlasTheme?.preference ?? "system";
-  elements["theme-select"].addEventListener("change", (event) => {
-    globalThis.diveAtlasTheme?.set(event.target.value);
+  const updateThemeButtons = (preference) => {
+    document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.themeChoice === preference));
+    });
+  };
+  updateThemeButtons(globalThis.diveAtlasTheme?.preference ?? "system");
+  document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      globalThis.diveAtlasTheme?.set(button.dataset.themeChoice);
+      updateThemeButtons(button.dataset.themeChoice);
+    });
   });
   document.querySelectorAll("[data-workspace]").forEach((button) =>
     button.addEventListener("click", () => setWorkspace(button.dataset.workspace)),
@@ -865,6 +918,22 @@ function registerEvents() {
     await removeMappings([...state.selectedMappings]);
     state.selectedMappings.clear();
     await refreshLibrary();
+  });
+  elements["clear-all-data"].addEventListener("click", async () => {
+    if (
+      !confirm(
+        "Clear all DiveAtlas dives, profiles, coordinate mappings, import history, and settings from this browser?",
+      )
+    ) {
+      return;
+    }
+    await clearLibrary();
+    state.selectedDives.clear();
+    state.selectedMappings.clear();
+    state.selectedViewDives.clear();
+    clearPlotSelection();
+    await refreshLibrary();
+    setWorkspace("data");
   });
   elements["request-persistence"].addEventListener("click", async () => {
     const granted = await navigator.storage.persist();
@@ -930,25 +999,37 @@ function registerEvents() {
     updateDateRangeLabel();
     state.mapBounds = null;
     state.showOutsideMap = false;
+    clearPlotSelection();
     renderView({ fitMap: true });
   });
   elements["show-outside-map"].addEventListener("change", (event) => {
     state.showOutsideMap = event.currentTarget.checked;
     renderView({ updateMap: false });
   });
+  elements["filter-plot-selection"].addEventListener("change", (event) => {
+    state.plotSelectionActive = event.currentTarget.checked && state.plotSelectedDives.size > 0;
+    state.mapBounds = null;
+    renderView({ fitMap: true });
+  });
   elements["select-map-dives"].addEventListener("click", async () => {
-    state.selectedViewDives = new Set(currentMapDives().map((dive) => dive.id));
+    const ids = currentMapDives().map((dive) => dive.id);
+    clearPlotSelection();
+    state.selectedViewDives = new Set(ids);
     renderView({ updateMap: false });
     await renderSelectedDiveDetails();
   });
   elements["select-list-dives"].addEventListener("click", async () => {
-    state.selectedViewDives = new Set(currentListDives().map((dive) => dive.id));
+    const ids = currentListDives().map((dive) => dive.id);
+    clearPlotSelection();
+    state.selectedViewDives = new Set(ids);
     renderView({ updateMap: false });
     await renderSelectedDiveDetails();
   });
   elements["clear-view-dives"].addEventListener("click", async () => {
+    const clearedPlotSelection = clearPlotSelection();
     state.selectedViewDives.clear();
-    renderView({ updateMap: false });
+    if (clearedPlotSelection) state.mapBounds = null;
+    renderView({ updateMap: clearedPlotSelection, fitMap: clearedPlotSelection });
     await renderSelectedDiveDetails();
   });
 }
