@@ -737,11 +737,25 @@ tbody tr:hover {
   color: var(--cp-accent-fg);
 }
 
+.marker-cluster.has-selected-dives {
+  box-shadow: 0 0 0 3px var(--cp-warning), 0 1px 5px rgba(0, 35, 50, 0.65);
+}
+
+.marker-cluster.all-selected-dives div {
+  background: var(--cp-warning);
+  color: var(--cp-text);
+}
+
 .dive-map-marker {
   border: 2px solid var(--cp-panel-strong);
   border-radius: 50%;
   background: var(--cp-accent);
   box-shadow: 0 1px 4px rgba(0, 35, 50, 0.45);
+}
+
+.dive-map-marker.is-selected {
+  background: var(--cp-warning);
+  box-shadow: 0 0 0 3px var(--cp-warning), 0 1px 5px rgba(0, 35, 50, 0.7);
 }
 
 .dive-map-marker span {

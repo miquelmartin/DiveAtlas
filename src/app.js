@@ -9,7 +9,7 @@ import {
 import { createBackup, restoreBackup } from "./backup.js";
 import { importSources } from "./importer.js";
 import { enrichMappingCountry, UNASSIGNED_COUNTRY } from "./country.js";
-import { initializeMap, renderMap } from "./map.js";
+import { initializeMap, renderMap, updateMapSelection } from "./map.js";
 import { renderProfileChart } from "./profile-chart.js";
 import { renderSelectionStatistics } from "./statistics-chart.js";
 import { downloadJson, formatBytes, normalizeKey } from "./utils.js";
@@ -662,7 +662,14 @@ function renderView({ updateMap = true, fitMap = false } = {}) {
     if (!groups.has(mapping.key)) groups.set(mapping.key, { mapping, dives: [] });
     groups.get(mapping.key).dives.push(dive);
   });
-  if (updateMap) renderMap([...groups.values()], { fit: fitMap });
+  if (updateMap) {
+    renderMap([...groups.values()], {
+      fit: fitMap,
+      selectedDiveIds: state.selectedViewDives,
+    });
+  } else {
+    updateMapSelection(state.selectedViewDives);
+  }
   document.querySelectorAll("[data-sort]").forEach((button) => {
     const active = button.dataset.sort === state.sortField;
     button.textContent = `${button.dataset.label}${active ? (state.sortDirection === "asc" ? " ↑" : " ↓") : ""}`;
