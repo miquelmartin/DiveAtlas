@@ -17,4 +17,4 @@ if (!workflow.includes("actions/deploy-pages@v5")) {
   throw new Error("Pages deployment workflow is incomplete");
 }
 
-console.log("Static checks passed: relative assets, local runtime scripts, and Pages workflow.");
+console.log("Static checks passed: safe asset URLs, runtime scripts, and Pages workflow.");

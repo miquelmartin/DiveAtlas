@@ -77,9 +77,9 @@ Restoring a backup into empty storage reproduces normalized dives, profiles, map
 
 ## Privacy and offline behavior
 
-DiveAtlas has no analytics, cookies, accounts, backend, upload endpoint, or remote persistence. Imported files, normalized records, and backups are not transmitted. See [PRIVACY.md](PRIVACY.md) for the complete disclosure.
+DiveAtlas has no cookies, accounts, backend, upload endpoint, or remote dive-data persistence. Imported files, normalized records, and backups are not transmitted. Aggregate, cookie-free page views are measured with GoatCounter. See [PRIVACY.md](PRIVACY.md) for the complete disclosure.
 
-GitHub Pages may log ordinary request information including IP addresses. The map defaults to Esri satellite imagery and can switch to OpenStreetMap streets or add OpenSeaMap seamarks. A displayed layer's provider receives tile requests and IP address and can infer the viewed map area. No dive records are included in tile requests. These configured tile providers are the only third-party runtime network dependencies.
+GitHub Pages may log ordinary request information including IP addresses. GoatCounter receives page-view requests but never imported dive data. The map defaults to Esri satellite imagery and can switch to OpenStreetMap streets or add OpenSeaMap seamarks. A displayed layer's provider receives tile requests and IP address and can infer the viewed map area. No dive records are included in analytics or tile requests. GoatCounter and the configured tile providers are the only third-party runtime network dependencies.
 
 The application shell and locally vendored Leaflet, clustering, and country-coder assets are cached by a service worker. Imported data remains in IndexedDB. Previously cached map tiles are not managed by DiveAtlas, so the map can require network access even while the rest of the shell works offline.
 

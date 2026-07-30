@@ -11,6 +11,18 @@ const sampleDives = [
 ];
 const sampleMappings = join(process.cwd(), "samples", "locations.csv");
 
+test.beforeEach(async ({ page }) => {
+  await page.route("https://gc.zgo.at/count.js", (route) =>
+    route.fulfill({
+      contentType: "application/javascript",
+      body: "globalThis.goatcounter = globalThis.goatcounter || {};",
+    }),
+  );
+  await page.route("https://miquelmartin.goatcounter.com/**", (route) =>
+    route.fulfill({ status: 204 }),
+  );
+});
+
 async function openProductionShell(page) {
   const errors = [];
   page.on("console", (message) => {
@@ -37,7 +49,9 @@ async function openProductionShell(page) {
 test("empty libraries open the data workspace with a dismissible welcome dialog", async ({
   page,
 }) => {
+  const goatCounterScript = page.waitForRequest("https://gc.zgo.at/count.js");
   await page.goto("/");
+  await expect((await goatCounterScript).url()).toBe("https://gc.zgo.at/count.js");
   const dialog = page.locator("#welcome-dialog");
   await expect(page.locator("#data-workspace")).toBeVisible();
   await expect(dialog).toBeVisible();

@@ -15,7 +15,9 @@ describe("GitHub Pages and offline shell", () => {
     expect(html).toContain('rel="icon" href="icons/logo-192.png" type="image/png"');
     expect(html).toContain("Dive data stays on this device");
     expect(html).not.toContain("No dive data leaves this device");
-    expect(html).not.toMatch(/<script[^>]+https?:/);
+    expect(
+      [...html.matchAll(/<script[^>]+src="(https?:[^"]+)"/g)].map((match) => match[1]),
+    ).toEqual(["https://gc.zgo.at/count.js"]);
     expect(html).not.toMatch(/<script(?:\s[^>]*)?>\s*\(\(\)/);
   });
 
@@ -52,11 +54,18 @@ describe("GitHub Pages and offline shell", () => {
     const html = await readFile(rootFile("index.html"), "utf8");
     expect(html).toContain("--cp-accent: #087ea4");
     expect(html).toContain("--cp-bg: #eef7fb");
-    expect(html).toContain("connect-src 'self' https://*.tile.openstreetmap.org");
+    expect(html).toContain(
+      "connect-src 'self' https://miquelmartin.goatcounter.com/count",
+    );
+    expect(html).toContain("https://*.tile.openstreetmap.org");
     expect(html).toContain("https://server.arcgisonline.com");
     expect(html).toContain("https://tiles.openseamap.org");
+    expect(html).toContain("script-src 'self' https://gc.zgo.at");
+    expect(html).toContain("https://miquelmartin.goatcounter.com/count");
+    expect(html).toContain(
+      '<script data-goatcounter="https://miquelmartin.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>',
+    );
     expect(html).not.toContain("script-src 'self' 'unsafe-inline'");
-    expect(html).not.toMatch(/<script[^>]+(?:analytics|telemetry)/i);
     const app = await readFile(rootFile("src/app.js"), "utf8");
     const startup = app.slice(app.indexOf("async function start()"));
     expect(startup).not.toContain("initializeMap(elements.map)");
@@ -68,5 +77,15 @@ describe("GitHub Pages and offline shell", () => {
     expect(license).toContain("MIT License");
     expect(license).toContain("Copyright (c) 2026 Miquel Martin");
     expect(packageMetadata.license).toBe("MIT");
+  });
+
+  it("discloses aggregate GoatCounter analytics without weakening dive-data privacy", async () => {
+    const privacy = await readFile(rootFile("PRIVACY.md"), "utf8");
+    const readme = await readFile(rootFile("README.md"), "utf8");
+    expect(privacy).toContain("GoatCounter does not use cookies");
+    expect(privacy).toContain("never receives UDDF or CSV contents");
+    expect(privacy).toContain("Hetzner infrastructure in Finland and Germany");
+    expect(readme).toContain("Aggregate, cookie-free page views are measured with GoatCounter");
+    expect(readme).not.toContain("DiveAtlas has no analytics");
   });
 });
