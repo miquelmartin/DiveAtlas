@@ -572,6 +572,17 @@ tbody tr:hover {
   appearance: none;
 }
 
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
 .view-dashboard {
   display: grid;
   grid-template-columns: minmax(17rem, 0.8fr) minmax(27rem, 1.55fr) minmax(23rem, 1.2fr);
@@ -613,9 +624,11 @@ tbody tr:hover {
 }
 
 .dive-list-controls button {
-  min-height: 1.65rem;
-  padding: 0.15rem 0.35rem;
-  font-size: 0.68rem;
+  min-height: 1.35rem;
+  padding: 0.05rem 0.28rem;
+  border-radius: 0.15rem;
+  font-size: 0.62rem;
+  line-height: 1.1;
   white-space: nowrap;
 }
 
@@ -751,12 +764,12 @@ tbody tr:hover {
 }
 
 .marker-cluster.has-selected-dives {
-  box-shadow: 0 0 0 3px var(--cp-warning), 0 1px 5px rgba(0, 35, 50, 0.65);
+  box-shadow: 0 0 0 3px var(--cp-selection), 0 1px 5px rgba(0, 35, 50, 0.65);
 }
 
 .marker-cluster.all-selected-dives div {
-  background: var(--cp-warning);
-  color: var(--cp-text);
+  background: var(--cp-selection);
+  color: var(--cp-selection-fg);
 }
 
 .dive-map-marker {
@@ -767,8 +780,8 @@ tbody tr:hover {
 }
 
 .dive-map-marker.is-selected {
-  background: var(--cp-warning);
-  box-shadow: 0 0 0 3px var(--cp-warning), 0 1px 5px rgba(0, 35, 50, 0.7);
+  background: var(--cp-selection);
+  box-shadow: 0 0 0 3px var(--cp-selection), 0 1px 5px rgba(0, 35, 50, 0.7);
 }
 
 .leaflet-overlay-pane .dive-spider-leg {
