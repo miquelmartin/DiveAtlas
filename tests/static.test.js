@@ -61,4 +61,12 @@ describe("GitHub Pages and offline shell", () => {
     const startup = app.slice(app.indexOf("async function start()"));
     expect(startup).not.toContain("initializeMap(elements.map)");
   });
+
+  it("declares the project MIT licensed", async () => {
+    const license = await readFile(rootFile("LICENSE"), "utf8");
+    const packageMetadata = JSON.parse(await readFile(rootFile("package.json"), "utf8"));
+    expect(license).toContain("MIT License");
+    expect(license).toContain("Copyright (c) 2026 Miquel Martin");
+    expect(packageMetadata.license).toBe("MIT");
+  });
 });

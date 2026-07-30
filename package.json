@@ -2,6 +2,7 @@
   "name": "diveatlas",
   "version": "1.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "test": "vitest run",

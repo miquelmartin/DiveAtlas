@@ -43,6 +43,30 @@ test("empty libraries open the data workspace with a dismissible welcome dialog"
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("This is your Dive Atlas");
   await expect(dialog).toContainText("DiveAtlas needs two inputs:");
+  const preview = dialog.getByRole("button", {
+    name: "View a DiveAtlas dashboard screenshot full screen",
+  });
+  await expect(preview).toBeVisible();
+  await expect(preview.locator("img")).toHaveAttribute("src", "images/welcome-dashboard.jpg");
+  await preview.click();
+  const screenshotDialog = page.locator("#welcome-screenshot-dialog");
+  await expect(screenshotDialog).toBeVisible();
+  const screenshotLayout = await screenshotDialog.locator("img").evaluate((image) => ({
+    naturalWidth: image.naturalWidth,
+    naturalHeight: image.naturalHeight,
+    width: image.getBoundingClientRect().width,
+    viewportWidth: document.documentElement.clientWidth,
+  }));
+  expect(screenshotLayout).toMatchObject({ naturalWidth: 2000, naturalHeight: 1090 });
+  expect(screenshotLayout.width / screenshotLayout.viewportWidth).toBeGreaterThan(0.8);
+  await page.setViewportSize({ width: 844, height: 390 });
+  const landscapeBounds = await screenshotDialog.locator("img").boundingBox();
+  expect(landscapeBounds.y).toBeGreaterThanOrEqual(0);
+  expect(landscapeBounds.y + landscapeBounds.height).toBeLessThanOrEqual(390);
+  await page.getByRole("button", { name: "Close full-screen screenshot" }).click();
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect(screenshotDialog).not.toBeVisible();
+  await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("no dive files or dive records are ever sent");
   await expect(dialog.getByRole("link", { name: "privacy notice" })).toHaveAttribute(
     "href",

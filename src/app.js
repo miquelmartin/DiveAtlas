@@ -105,6 +105,9 @@ const elements = Object.fromEntries(
     "welcome-dialog",
     "close-welcome",
     "accept-welcome",
+    "open-welcome-screenshot",
+    "welcome-screenshot-dialog",
+    "close-welcome-screenshot",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
@@ -877,6 +880,17 @@ function registerEvents() {
   });
   elements["welcome-dialog"].addEventListener("click", (event) => {
     if (event.target === elements["welcome-dialog"]) elements["welcome-dialog"].close();
+  });
+  elements["open-welcome-screenshot"].addEventListener("click", () => {
+    elements["welcome-screenshot-dialog"].showModal();
+  });
+  elements["close-welcome-screenshot"].addEventListener("click", () => {
+    elements["welcome-screenshot-dialog"].close();
+  });
+  elements["welcome-screenshot-dialog"].addEventListener("click", (event) => {
+    if (event.target === elements["welcome-screenshot-dialog"]) {
+      elements["welcome-screenshot-dialog"].close();
+    }
   });
   elements["dive-files"].addEventListener("change", (event) => {
     setDiveFiles(event.target.files);

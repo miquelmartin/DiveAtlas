@@ -262,6 +262,34 @@ main {
   margin-top: 0.35rem;
 }
 
+.welcome-preview {
+  width: min(20rem, 100%);
+  margin: 0 auto 1rem;
+  text-align: center;
+}
+
+.welcome-preview button {
+  display: block;
+  width: 100%;
+  padding: 0.2rem;
+  overflow: hidden;
+  border-color: var(--cp-border-strong);
+  background: var(--cp-surface-soft);
+}
+
+.welcome-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.35rem;
+}
+
+.welcome-preview figcaption {
+  margin-top: 0.25rem;
+  color: var(--cp-text-muted);
+  font-size: 0.75rem;
+}
+
 .welcome-close {
   position: absolute;
   top: 0.65rem;
@@ -286,6 +314,52 @@ main {
 
 .welcome-actions button {
   min-width: 7rem;
+}
+
+.screenshot-dialog {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 2.75rem 1rem 1rem;
+  overflow: hidden;
+  border: 0;
+  background: var(--cp-bg);
+}
+
+.screenshot-dialog[open] {
+  display: grid;
+  place-items: center;
+}
+
+.screenshot-dialog::backdrop {
+  background: var(--cp-overlay);
+}
+
+.screenshot-dialog img {
+  display: block;
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100dvh - 3.75rem);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  box-shadow: var(--cp-shadow);
+}
+
+.screenshot-close {
+  position: fixed;
+  z-index: 1;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0;
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  font-size: 1.35rem;
+  line-height: 1;
 }
 
 .section-heading,
