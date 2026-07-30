@@ -21,6 +21,7 @@ const state = {
   selectedMappings: new Set(),
   selectedViewDives: new Set(),
   mapBounds: null,
+  showOutsideMap: false,
   cancelled: false,
   mapInitialized: false,
   pendingDiveFiles: [],
@@ -74,8 +75,10 @@ const elements = Object.fromEntries(
     "min-duration",
     "date-range-start",
     "date-range-end",
+    "date-range-track",
     "date-range-label",
     "clear-filters",
+    "show-outside-map",
     "reset-map-filter",
     "view-result-count",
     "view-dive-list",
@@ -119,12 +122,6 @@ function mappingLookup() {
 
 function isMatched(dive, lookup = mappingLookup()) {
   return lookup.has(dive.mappingKey);
-}
-
-function diveType(dive) {
-  if (dive.decoDive === true) return { label: "DECO", className: "deco" };
-  if (dive.decoDive === false) return { label: "NO-DECO", className: "no-deco" };
-  return { label: "UNKNOWN", className: "unknown-deco" };
 }
 
 function appendResult(list, type, filename, message) {
@@ -492,10 +489,21 @@ async function toggleViewDives(ids) {
 function renderView({ updateMap = true, fitMap = false } = {}) {
   const baseDives = currentViewDives();
   const lookup = mappingLookup();
-  const dives = filterDivesToBounds(baseDives, lookup, state.mapBounds);
+  const divesInMap = filterDivesToBounds(baseDives, lookup, state.mapBounds);
+  const showOutside = Boolean(state.mapBounds && state.showOutsideMap);
+  const dives = showOutside ? baseDives : divesInMap;
+  const divesInMapIds = new Set(divesInMap.map((dive) => dive.id));
+  const outsideCount = baseDives.length - divesInMap.length;
   elements["view-result-count"].textContent = state.mapBounds
-    ? `${dives.length} of ${baseDives.length} dives in map view`
+    ? `${divesInMap.length} of ${baseDives.length} dives in map view${
+        showOutside ? " · showing all" : ""
+      }`
     : `${dives.length} dive${dives.length === 1 ? "" : "s"}`;
+  elements["show-outside-map"].disabled = !state.mapBounds || outsideCount === 0;
+  elements["show-outside-map"].textContent = showOutside
+    ? "Hide dives outside the map"
+    : "Show dives outside the map";
+  elements["show-outside-map"].setAttribute("aria-pressed", showOutside);
   elements["reset-map-filter"].disabled = !state.mapBounds;
   elements["view-dive-list"].replaceChildren();
   const diveRows = dives.map((dive) => ({
@@ -506,6 +514,7 @@ function renderView({ updateMap = true, fitMap = false } = {}) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "dive-row";
+    button.classList.toggle("is-outside-map", showOutside && !divesInMapIds.has(dive.id));
     const selected = state.selectedViewDives.has(dive.id);
     button.classList.toggle("is-selected", selected);
     button.setAttribute("aria-pressed", selected);
@@ -516,8 +525,7 @@ function renderView({ updateMap = true, fitMap = false } = {}) {
     const values = [
       ["dive-cell dive-number", dive.number ?? "—"],
       ["dive-cell", dive.location],
-      ["dive-cell", dive.site],
-      ["dive-cell dive-country", dive.country],
+      ["dive-cell dive-site", dive.site],
     ];
     values.forEach(([className, value]) => {
       const item = document.createElement("span");
@@ -532,15 +540,16 @@ function renderView({ updateMap = true, fitMap = false } = {}) {
     const duration = Number.isFinite(dive.durationSeconds)
       ? `${Math.round(dive.durationSeconds / 60)} min`
       : "—";
-    const deco = document.createElement("span");
-    const type = diveType(dive);
-    deco.className = type.className;
-    deco.textContent = type.label;
+    const country = document.createElement("span");
+    country.className = "dive-country";
+    country.textContent = dive.country;
+    country.title = dive.country;
     stats.append(
       document.createTextNode(
-        `${dive.dateTime?.slice(0, 10) || "Unknown date"} · ${depth} · ${duration} · `,
+        `${dive.dateTime?.slice(0, 10) || "Unknown date"} · `,
       ),
-      deco,
+      country,
+      document.createTextNode(` · ${depth} · ${duration}`),
     );
     button.append(stats);
     button.addEventListener("click", () => void toggleViewDives([dive.id]));
@@ -590,6 +599,11 @@ function updateDateRangeLabel() {
   const start = state.dateValues[Number(elements["date-range-start"].value)];
   const end = state.dateValues[Number(elements["date-range-end"].value)];
   elements["date-range-label"].value = start === end ? start : `${start} – ${end}`;
+  const max = state.dateValues.length - 1;
+  const startPercent = max > 0 ? (Number(elements["date-range-start"].value) / max) * 100 : 0;
+  const endPercent = max > 0 ? (Number(elements["date-range-end"].value) / max) * 100 : 100;
+  elements["date-range-track"].style.setProperty("--range-start", `${startPercent}%`);
+  elements["date-range-track"].style.setProperty("--range-end", `${endPercent}%`);
 }
 
 function updateRemovalButtons() {
@@ -753,10 +767,16 @@ function registerEvents() {
     elements["date-range-end"].value = Math.max(0, state.dateValues.length - 1);
     updateDateRangeLabel();
     state.mapBounds = null;
+    state.showOutsideMap = false;
     renderView({ fitMap: true });
+  });
+  elements["show-outside-map"].addEventListener("click", () => {
+    state.showOutsideMap = !state.showOutsideMap;
+    renderView({ updateMap: false });
   });
   elements["reset-map-filter"].addEventListener("click", () => {
     state.mapBounds = null;
+    state.showOutsideMap = false;
     renderView({ fitMap: true });
   });
 }

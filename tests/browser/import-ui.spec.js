@@ -111,6 +111,10 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator('.leaflet-tile[src*="server.arcgisonline.com"]').first()).toBeAttached();
   await expect(page.locator(".dive-row")).toHaveCount(3);
   await expect(page.locator(".country-group")).toHaveCount(0);
+  await expect(page.locator(".dive-row").first().locator(".dive-stats")).toHaveText(
+    "2025-06-17 · Japan · 24.2 m · 3 min",
+  );
+  await expect(page.locator("#view-dive-list")).not.toContainText("UNKNOWN");
 
   await page.locator(".leaflet-control-layers-toggle").hover({ force: true });
   await expect(page.getByText("Satellite", { exact: true })).toBeVisible();
@@ -143,8 +147,18 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
 
   await farMarker.dblclick();
   await expect(page.locator("#view-result-count")).toContainText("of 3 dives in map view");
+  const visibleDiveCount = await page.locator(".dive-row").count();
+  expect(visibleDiveCount).toBeLessThan(3);
+  await page.getByRole("button", { name: "Show dives outside the map" }).click();
+  await expect(page.locator(".dive-row")).toHaveCount(3);
+  await expect(page.locator(".dive-row.is-outside-map")).toHaveCount(3 - visibleDiveCount);
+  await expect(page.getByRole("button", { name: "Hide dives outside the map" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await page.locator("#reset-map-filter").click();
   await expect(page.locator("#view-result-count")).toHaveText("3 dives");
+  await expect(page.getByRole("button", { name: "Show dives outside the map" })).toBeDisabled();
 
   await page.locator("#date-range-end").evaluate((input) => {
     input.value = "1";
@@ -153,6 +167,14 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator("#view-result-count")).toHaveText("2 dives");
   await expect(page.locator(".dive-row")).toHaveCount(2);
   await expect(page.locator("#date-range-label")).toContainText("2025-06-16");
+  await expect(page.locator("#date-range-track")).toHaveCSS("--range-start", "0%");
+  await expect(page.locator("#date-range-track")).toHaveCSS("--range-end", "50%");
+  await page.locator("#date-range-start").evaluate((input) => {
+    input.value = "1";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect(page.locator("#date-range-track")).toHaveCSS("--range-start", "50%");
+  await expect(page.locator("#date-range-track")).toHaveCSS("--range-end", "50%");
 
   await page.locator("#min-depth").fill("25");
   await expect(page.locator("#view-result-count")).toHaveText("0 dives");

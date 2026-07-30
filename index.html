@@ -239,6 +239,7 @@
           <label>Deeper than <span><input id="min-depth" type="number" min="0" step="1" inputmode="decimal"> m</span></label>
           <label>Longer than <span><input id="min-duration" type="number" min="0" step="1" inputmode="decimal"> min</span></label>
           <button id="clear-filters" type="button">Reset filters</button>
+          <button id="show-outside-map" type="button" aria-pressed="false" disabled>Show dives outside the map</button>
           <button id="reset-map-filter" type="button" disabled>Show all map</button>
         </section>
         <div class="view-dashboard">
@@ -255,7 +256,7 @@
             <div id="map" aria-label="Interactive map of matched dive sites"></div>
             <div class="date-scrubber">
               <div class="date-scrubber-label"><span>Date range</span><output id="date-range-label">No dated dives</output></div>
-              <div class="range-stack">
+              <div id="date-range-track" class="range-stack">
                 <input id="date-range-start" type="range" min="0" max="0" value="0" aria-label="Earliest dive date">
                 <input id="date-range-end" type="range" min="0" max="0" value="0" aria-label="Latest dive date">
               </div>
