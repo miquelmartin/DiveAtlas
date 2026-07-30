@@ -24,6 +24,7 @@ const state = {
   mappings: [],
   selectedDives: new Set(),
   selectedMappings: new Set(),
+  expandedMappingLocations: new Set(),
   selectedViewDives: new Set(),
   mapBounds: null,
   showOutsideMap: false,
@@ -77,6 +78,7 @@ const elements = Object.fromEntries(
     "restore-backup",
     "backup-status",
     "theme-select",
+    "view-search",
     "min-depth",
     "min-duration",
     "date-range-start",
@@ -111,6 +113,7 @@ function setWorkspace(name) {
     button.classList.toggle("is-active", selected);
     button.setAttribute("aria-selected", selected);
   });
+  document.getElementById("workspace").setAttribute("aria-busy", "false");
   if (name === "view") setTimeout(() => globalThis.dispatchEvent(new Event("resize")), 0);
   if (name === "view" && !state.mapInitialized) {
     initializeMap(elements.map, {
@@ -360,8 +363,10 @@ function renderMappingTable() {
   });
   [...locations.values()]
     .sort((left, right) => left.location.localeCompare(right.location))
-    .forEach((group) => {
+    .forEach((group, groupIndex) => {
       group.mappings.sort((left, right) => left.site.localeCompare(right.site));
+      const groupKey = normalizeKey(group.location);
+      const expanded = state.expandedMappingLocations.has(groupKey);
       const locationRow = document.createElement("tr");
       locationRow.className = "mapping-location-row";
       const groupSelection = document.createElement("td");
@@ -388,18 +393,32 @@ function renderMappingTable() {
       const location = document.createElement("th");
       location.scope = "rowgroup";
       location.colSpan = 5;
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "mapping-location-toggle";
+      toggle.setAttribute("aria-expanded", String(expanded));
       const locationName = document.createElement("span");
       locationName.textContent = group.location;
       const count = document.createElement("span");
       count.className = "mapping-location-count";
       count.textContent = `${group.mappings.length} site${group.mappings.length === 1 ? "" : "s"}`;
-      location.append(locationName, count);
+      const rowIds = group.mappings.map((_, index) => `mapping-group-${groupIndex}-site-${index}`);
+      toggle.setAttribute("aria-controls", rowIds.join(" "));
+      toggle.append(locationName, count);
+      toggle.addEventListener("click", () => {
+        if (expanded) state.expandedMappingLocations.delete(groupKey);
+        else state.expandedMappingLocations.add(groupKey);
+        renderMappingTable();
+      });
+      location.append(toggle);
       locationRow.append(groupSelection, location);
       elements["mapping-table-body"].append(locationRow);
 
-      group.mappings.forEach((mapping) => {
+      group.mappings.forEach((mapping, mappingIndex) => {
         const row = document.createElement("tr");
         row.className = "mapping-site-row";
+        row.id = rowIds[mappingIndex];
+        row.hidden = !expanded;
         const selection = document.createElement("td");
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
@@ -473,6 +492,7 @@ function currentViewDives() {
   const dates = dateRangeFilters();
   return filterDives(state.dives, {
     ...dates,
+    search: elements["view-search"].value,
     minDepth: elements["min-depth"].value,
     minDuration: elements["min-duration"].value,
   });
@@ -496,6 +516,9 @@ function renderSelectionStats() {
   renderSelectionStatistics(elements["selection-stats"], dives, {
     ...selectedDateExtent(),
     libraryDives: state.dives,
+    onSelectDives: (selectedDives) => {
+      void selectViewDives(selectedDives.map((dive) => dive.id), { fitMap: true });
+    },
   });
 }
 
@@ -577,6 +600,17 @@ async function toggleViewDives(ids) {
   renderView({ updateMap: false });
 }
 
+async function selectViewDives(ids, { fitMap = false } = {}) {
+  state.selectedViewDives = new Set(ids);
+  if (fitMap) state.mapBounds = null;
+  renderView({
+    updateMap: fitMap,
+    fitMap,
+    mapDiveIds: fitMap ? state.selectedViewDives : null,
+  });
+  await renderSelectedDiveDetails();
+}
+
 function currentMapDives() {
   const lookup = mappingLookup();
   const mappedDives = currentViewDives().filter((dive) => lookup.has(dive.mappingKey));
@@ -601,7 +635,7 @@ async function handleMapBoundsChange(bounds) {
   if (autoSelect) await renderSelectedDiveDetails();
 }
 
-function renderView({ updateMap = true, fitMap = false } = {}) {
+function renderView({ updateMap = true, fitMap = false, mapDiveIds = null } = {}) {
   const baseDives = currentViewDives();
   const lookup = mappingLookup();
   const divesInMap = filterDivesToBounds(baseDives, lookup, state.mapBounds);
@@ -674,7 +708,10 @@ function renderView({ updateMap = true, fitMap = false } = {}) {
   }
 
   const groups = new Map();
-  baseDives.forEach((dive) => {
+  const mapDives = mapDiveIds
+    ? state.dives.filter((dive) => mapDiveIds.has(dive.id))
+    : baseDives;
+  mapDives.forEach((dive) => {
     const mapping = lookup.get(dive.mappingKey);
     if (!mapping) return;
     if (!groups.has(mapping.key)) groups.set(mapping.key, { mapping, dives: [] });
@@ -853,7 +890,7 @@ function registerEvents() {
       elements["backup-status"].textContent = error instanceof Error ? error.message : String(error);
     }
   });
-  ["min-depth", "min-duration"].forEach((id) =>
+  ["view-search", "min-depth", "min-duration"].forEach((id) =>
     elements[id].addEventListener("input", () => renderView()),
   );
   const updateDateFilter = (changed) => {
@@ -884,6 +921,7 @@ function registerEvents() {
     }),
   );
   elements["clear-filters"].addEventListener("click", () => {
+    elements["view-search"].value = "";
     elements["min-depth"].value = "0";
     elements["min-duration"].value = "0";
     elements["date-range-start"].value = 0;
@@ -918,12 +956,13 @@ async function start() {
   await openDatabase();
   registerEvents();
   await refreshLibrary();
-  if (state.dives.length) setWorkspace("view");
+  setWorkspace(state.dives.length ? "view" : "data");
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register(new URL("../sw.js", import.meta.url));
   }
 }
 
 start().catch((error) => {
+  setWorkspace("data");
   elements["dive-import-results"].textContent = `DiveAtlas could not start: ${error.message}`;
 });

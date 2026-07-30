@@ -66,7 +66,7 @@ describe("UDDF parser", () => {
       location: "Example Island, Test Region",
       site: "Blue Wall",
       maxDepth: null,
-      durationSeconds: null,
+      durationSeconds: 180,
       sampleCount: 0,
       decoDive: null,
     });

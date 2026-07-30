@@ -121,6 +121,10 @@ export function parseUddf(xmlText, sourceName = "UDDF file") {
       .filter((sample) => Number.isFinite(sample.time) && Number.isFinite(sample.depth));
 
     const summary = profileSummary(samples);
+    const recordedDuration = numeric(profile, "diveduration");
+    if (Number.isFinite(recordedDuration) && recordedDuration >= 0) {
+      summary.durationSeconds = recordedDuration;
+    }
     const dive = {
       schemaVersion: 1,
       uddfId: profile.getAttribute("id") || "",

@@ -98,6 +98,7 @@ export async function importSources(
         const parsedDives = parseUddf(processed.text, file.name);
         let added = 0;
         let duplicates = 0;
+        let enriched = 0;
         const conflicts = [];
         const sourceCandidates = new Map();
         const blockedSourceIds = new Set();
@@ -131,11 +132,14 @@ export async function importSources(
         );
         added += stored.added;
         duplicates += stored.duplicates;
+        enriched += stored.enriched;
         conflicts.push(...stored.conflicts);
         results.push({
           type: conflicts.length || duplicates ? "warning" : "success",
           filename: file.name,
           message: `${added} dive(s) imported${
+            enriched ? `; ${enriched} stored dive(s) enriched` : ""
+          }${
             duplicates ? `; ${duplicates} normalized duplicate(s) skipped` : ""
           }${conflicts.length ? `; ${conflicts.length} conflict(s)` : ""}`,
           issues: conflicts,

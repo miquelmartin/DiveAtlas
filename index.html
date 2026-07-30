@@ -98,14 +98,14 @@
           </select>
         </label>
         <nav class="workspace-tabs" aria-label="Workspaces">
-          <button class="tab is-active" type="button" data-workspace="data" aria-controls="data-workspace" aria-selected="true">Data</button>
+          <button class="tab" type="button" data-workspace="data" aria-controls="data-workspace" aria-selected="false">Data</button>
           <button class="tab" type="button" data-workspace="view" aria-controls="view-workspace" aria-selected="false">View</button>
         </nav>
       </div>
     </header>
 
-    <main id="workspace">
-      <section id="data-workspace" class="workspace" aria-label="Data workspace">
+    <main id="workspace" aria-busy="true">
+      <section id="data-workspace" class="workspace" aria-label="Data workspace" hidden>
         <div class="section-heading compact-heading">
           <p class="privacy-chip">Dive data stays on this device</p>
         </div>
@@ -244,22 +244,28 @@
       </section>
 
       <section id="view-workspace" class="workspace view-workspace" aria-label="View workspace" hidden>
-        <section class="view-toolbar" aria-label="Dive filters">
-          <p id="view-result-count">0 dives</p>
-          <label>Deeper than <span><input id="min-depth" type="number" min="0" step="1" inputmode="decimal" value="0"> m</span></label>
-          <label>Longer than <span><input id="min-duration" type="number" min="0" step="1" inputmode="decimal" value="0"> min</span></label>
-          <button id="clear-filters" class="icon-button" type="button" aria-label="Reset filters" title="Reset filters">×</button>
-        </section>
         <div class="view-dashboard">
           <section class="dashboard-pane dive-list-pane" aria-label="Filtered dives">
             <div class="dive-list-controls">
-              <label><input id="show-outside-map" type="checkbox" disabled> Show dives outside the map</label>
-              <div class="dive-selection-actions" role="group" aria-label="Select dives">
-                <span>Select</span>
-                <button id="select-map-dives" type="button" disabled>Map</button>
-                <button id="select-list-dives" type="button" disabled>All</button>
-                <button id="clear-view-dives" type="button" disabled>None</button>
-              </div>
+              <fieldset class="dive-control-section">
+                <legend>Selection</legend>
+                <div class="dive-selection-actions" role="group" aria-label="Select dives">
+                  <button id="select-map-dives" type="button" disabled>Map</button>
+                  <button id="select-list-dives" type="button" disabled>All</button>
+                  <button id="clear-view-dives" type="button" disabled>None</button>
+                </div>
+                <label><input id="show-outside-map" type="checkbox" disabled> Show dives outside the map</label>
+              </fieldset>
+              <fieldset class="dive-control-section dive-filter-controls">
+                <legend>Filters</legend>
+                <button id="clear-filters" class="icon-button" type="button" aria-label="Clear filters" title="Clear filters">×</button>
+                <label class="view-keyword">Keyword <input id="view-search" type="search" placeholder="Site, location, date, number"></label>
+                <div class="view-thresholds">
+                  <label>Deeper than <span><input id="min-depth" type="number" min="0" step="1" inputmode="decimal" value="0"> m</span></label>
+                  <label>Longer than <span><input id="min-duration" type="number" min="0" step="1" inputmode="decimal" value="0"> min</span></label>
+                </div>
+                <p id="view-result-count">0 dives</p>
+              </fieldset>
             </div>
             <div class="dive-list-header" aria-label="Sort dives">
               <button type="button" data-sort="number" data-label="#">#</button>
