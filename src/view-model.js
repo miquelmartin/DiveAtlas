@@ -32,27 +32,12 @@ function compareValues(left, right) {
   });
 }
 
-export function groupAndSortDives(dives, field = "number", direction = "desc") {
+export function sortDives(dives, field = "number", direction = "desc") {
   const multiplier = direction === "asc" ? 1 : -1;
-  const groups = new Map();
-  dives.forEach((dive) => {
-    const country = dive.country || "International waters / unassigned";
-    if (!groups.has(country)) groups.set(country, []);
-    groups.get(country).push(dive);
+  return [...dives].sort((left, right) => {
+    const comparison = compareValues(left[field], right[field]) * multiplier;
+    return comparison || compareValues(right.number, left.number);
   });
-  const countryMultiplier = field === "country" ? multiplier : 1;
-  return [...groups.entries()]
-    .sort(([left], [right]) => compareValues(left, right) * countryMultiplier)
-    .map(([country, groupedDives]) => ({
-      country,
-      dives: groupedDives.sort(
-        (left, right) =>
-          compareValues(
-            field === "country" ? left.number : left[field],
-            field === "country" ? right.number : right[field],
-          ) * (field === "country" ? -1 : multiplier),
-      ),
-    }));
 }
 
 export function filterDivesToBounds(dives, mappings, bounds) {

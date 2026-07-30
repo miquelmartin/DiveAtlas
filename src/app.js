@@ -12,7 +12,7 @@ import { enrichMappingCountry, UNASSIGNED_COUNTRY } from "./country.js";
 import { initializeMap, renderMap } from "./map.js";
 import { renderProfileChart } from "./profile-chart.js";
 import { downloadJson, formatBytes } from "./utils.js";
-import { filterDives, filterDivesToBounds, groupAndSortDives } from "./view-model.js";
+import { filterDives, filterDivesToBounds, sortDives } from "./view-model.js";
 
 const state = {
   dives: [],
@@ -21,6 +21,7 @@ const state = {
   selectedMappings: new Set(),
   selectedViewDives: new Set(),
   mapBounds: null,
+  showOutsideMap: false,
   cancelled: false,
   mapInitialized: false,
   pendingDiveFiles: [],
@@ -31,7 +32,6 @@ const state = {
   dateValues: [],
   sortField: "number",
   sortDirection: "desc",
-  collapsedCountries: new Set(),
 };
 
 const elements = Object.fromEntries(
@@ -75,8 +75,10 @@ const elements = Object.fromEntries(
     "min-duration",
     "date-range-start",
     "date-range-end",
+    "date-range-track",
     "date-range-label",
     "clear-filters",
+    "show-outside-map",
     "reset-map-filter",
     "view-result-count",
     "view-dive-list",
@@ -120,12 +122,6 @@ function mappingLookup() {
 
 function isMatched(dive, lookup = mappingLookup()) {
   return lookup.has(dive.mappingKey);
-}
-
-function diveType(dive) {
-  if (dive.decoDive === true) return { label: "DECO", className: "deco" };
-  if (dive.decoDive === false) return { label: "NO-DECO", className: "no-deco" };
-  return { label: "UNKNOWN", className: "unknown-deco" };
 }
 
 function appendResult(list, type, filename, message) {
@@ -471,6 +467,9 @@ async function renderSelectedDiveDetails() {
   const profiles = await Promise.all(
     dives.map(async (dive) => ({
       label: `Dive ${dive.number ?? "—"} · ${dive.site}`,
+      number: dive.number,
+      location: dive.location,
+      site: dive.site,
       samples: (await getRecord("profiles", dive.id))?.samples ?? [],
     })),
   );
@@ -490,72 +489,71 @@ async function toggleViewDives(ids) {
 function renderView({ updateMap = true, fitMap = false } = {}) {
   const baseDives = currentViewDives();
   const lookup = mappingLookup();
-  const dives = filterDivesToBounds(baseDives, lookup, state.mapBounds);
+  const divesInMap = filterDivesToBounds(baseDives, lookup, state.mapBounds);
+  const showOutside = Boolean(state.mapBounds && state.showOutsideMap);
+  const dives = showOutside ? baseDives : divesInMap;
+  const divesInMapIds = new Set(divesInMap.map((dive) => dive.id));
+  const outsideCount = baseDives.length - divesInMap.length;
   elements["view-result-count"].textContent = state.mapBounds
-    ? `${dives.length} of ${baseDives.length} dives in map view`
+    ? `${divesInMap.length} of ${baseDives.length} dives in map view${
+        showOutside ? " · showing all" : ""
+      }`
     : `${dives.length} dive${dives.length === 1 ? "" : "s"}`;
+  elements["show-outside-map"].disabled = !state.mapBounds || outsideCount === 0;
+  elements["show-outside-map"].textContent = showOutside
+    ? "Hide dives outside the map"
+    : "Show dives outside the map";
+  elements["show-outside-map"].setAttribute("aria-pressed", showOutside);
   elements["reset-map-filter"].disabled = !state.mapBounds;
   elements["view-dive-list"].replaceChildren();
   const diveRows = dives.map((dive) => ({
     ...dive,
     country: lookup.get(dive.mappingKey)?.country ?? "Unmapped",
   }));
-  groupAndSortDives(diveRows, state.sortField, state.sortDirection).forEach((group) => {
-    const details = document.createElement("details");
-    details.className = "country-group";
-    details.open = !state.collapsedCountries.has(group.country);
-    details.addEventListener("toggle", () => {
-      if (details.open) state.collapsedCountries.delete(group.country);
-      else state.collapsedCountries.add(group.country);
+  sortDives(diveRows, state.sortField, state.sortDirection).forEach((dive) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "dive-row";
+    button.classList.toggle("is-outside-map", showOutside && !divesInMapIds.has(dive.id));
+    const selected = state.selectedViewDives.has(dive.id);
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", selected);
+    button.setAttribute(
+      "aria-label",
+      `Dive ${dive.number ?? "unknown"}, ${dive.location}, ${dive.site}`,
+    );
+    const values = [
+      ["dive-cell dive-number", dive.number ?? "—"],
+      ["dive-cell", dive.location],
+      ["dive-cell dive-site", dive.site],
+    ];
+    values.forEach(([className, value]) => {
+      const item = document.createElement("span");
+      item.className = className;
+      item.textContent = value;
+      item.title = String(value);
+      button.append(item);
     });
-    const summary = document.createElement("summary");
-    summary.textContent = `${group.country} (${group.dives.length})`;
-    details.append(summary);
-    group.dives.forEach((dive) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "dive-row";
-      const selected = state.selectedViewDives.has(dive.id);
-      button.classList.toggle("is-selected", selected);
-      button.setAttribute("aria-pressed", selected);
-      button.setAttribute(
-        "aria-label",
-        `Dive ${dive.number ?? "unknown"}, ${dive.location}, ${dive.site}`,
-      );
-      const values = [
-        ["dive-cell dive-number", dive.number ?? "—"],
-        ["dive-cell", dive.location],
-        ["dive-cell", dive.site],
-        ["dive-cell dive-country", dive.country],
-      ];
-      values.forEach(([className, value]) => {
-        const item = document.createElement("span");
-        item.className = className;
-        item.textContent = value;
-        item.title = String(value);
-        button.append(item);
-      });
-      const stats = document.createElement("span");
-      stats.className = "dive-stats";
-      const depth = Number.isFinite(dive.maxDepth) ? `${dive.maxDepth.toFixed(1)} m` : "—";
-      const duration = Number.isFinite(dive.durationSeconds)
-        ? `${Math.round(dive.durationSeconds / 60)} min`
-        : "—";
-      const deco = document.createElement("span");
-      const type = diveType(dive);
-      deco.className = type.className;
-      deco.textContent = type.label;
-      stats.append(
-        document.createTextNode(
-          `${dive.dateTime?.slice(0, 10) || "Unknown date"} · ${depth} · ${duration} · `,
-        ),
-        deco,
-      );
-      button.append(stats);
-      button.addEventListener("click", () => void toggleViewDives([dive.id]));
-      details.append(button);
-    });
-    elements["view-dive-list"].append(details);
+    const stats = document.createElement("span");
+    stats.className = "dive-stats";
+    const depth = Number.isFinite(dive.maxDepth) ? `${dive.maxDepth.toFixed(1)} m` : "—";
+    const duration = Number.isFinite(dive.durationSeconds)
+      ? `${Math.round(dive.durationSeconds / 60)} min`
+      : "—";
+    const country = document.createElement("span");
+    country.className = "dive-country";
+    country.textContent = dive.country;
+    country.title = dive.country;
+    stats.append(
+      document.createTextNode(
+        `${dive.dateTime?.slice(0, 10) || "Unknown date"} · `,
+      ),
+      country,
+      document.createTextNode(` · ${depth} · ${duration}`),
+    );
+    button.append(stats);
+    button.addEventListener("click", () => void toggleViewDives([dive.id]));
+    elements["view-dive-list"].append(button);
   });
   if (!dives.length) {
     const message = document.createElement("p");
@@ -601,6 +599,11 @@ function updateDateRangeLabel() {
   const start = state.dateValues[Number(elements["date-range-start"].value)];
   const end = state.dateValues[Number(elements["date-range-end"].value)];
   elements["date-range-label"].value = start === end ? start : `${start} – ${end}`;
+  const max = state.dateValues.length - 1;
+  const startPercent = max > 0 ? (Number(elements["date-range-start"].value) / max) * 100 : 0;
+  const endPercent = max > 0 ? (Number(elements["date-range-end"].value) / max) * 100 : 100;
+  elements["date-range-track"].style.setProperty("--range-start", `${startPercent}%`);
+  elements["date-range-track"].style.setProperty("--range-end", `${endPercent}%`);
 }
 
 function updateRemovalButtons() {
@@ -758,16 +761,22 @@ function registerEvents() {
     }),
   );
   elements["clear-filters"].addEventListener("click", () => {
-    elements["min-depth"].value = "";
-    elements["min-duration"].value = "";
+    elements["min-depth"].value = "0";
+    elements["min-duration"].value = "0";
     elements["date-range-start"].value = 0;
     elements["date-range-end"].value = Math.max(0, state.dateValues.length - 1);
     updateDateRangeLabel();
     state.mapBounds = null;
+    state.showOutsideMap = false;
     renderView({ fitMap: true });
+  });
+  elements["show-outside-map"].addEventListener("click", () => {
+    state.showOutsideMap = !state.showOutsideMap;
+    renderView({ updateMap: false });
   });
   elements["reset-map-filter"].addEventListener("click", () => {
     state.mapBounds = null;
+    state.showOutsideMap = false;
     renderView({ fitMap: true });
   });
 }

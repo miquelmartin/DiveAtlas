@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { profilePath, renderProfileChart } from "../src/profile-chart.js";
-import { filterDives, filterDivesToBounds, groupAndSortDives } from "../src/view-model.js";
+import { filterDives, filterDivesToBounds, sortDives } from "../src/view-model.js";
 
 const dives = [
   {
@@ -48,8 +48,8 @@ it("filters by minimum depth, duration, and date range", () => {
   ).toEqual([dives[1]]);
 });
 
-it("groups countries and sorts dive columns", () => {
-  const grouped = groupAndSortDives(
+it("sorts the flat dive list by any visible column", () => {
+  const sorted = sortDives(
     [
       { ...dives[0], country: "Spain" },
       { ...dives[1], country: "France" },
@@ -58,8 +58,12 @@ it("groups countries and sorts dive columns", () => {
     "site",
     "asc",
   );
-  expect(grouped.map((group) => group.country)).toEqual(["France", "Spain"]);
-  expect(grouped[1].dives.map((dive) => dive.site)).toEqual(["Arch", "Wall"]);
+  expect(sorted.map((dive) => dive.site)).toEqual(["Arch", "Reef", "Wall"]);
+  expect(sortDives(sorted, "country", "asc").map((dive) => dive.country)).toEqual([
+    "France",
+    "Spain",
+    "Spain",
+  ]);
 });
 
 it("filters mapped dives to the visible map bounds", () => {
@@ -117,6 +121,31 @@ describe("profile rendering", () => {
     expect(container.querySelectorAll(".profile-line")).toHaveLength(2);
     expect([...container.querySelectorAll(".profile-legend li")].map((item) => item.textContent))
       .toEqual(["Dive 1", "Dive 2"]);
+  });
+
+  it("shows dive metadata, depth, and elapsed minutes in a hover tooltip", () => {
+    const container = document.createElement("div");
+    container.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 720,
+      height: 280,
+    });
+    renderProfileChart(container, [
+      {
+        label: "Dive 7 · Blue Wall",
+        number: 7,
+        location: "Example Island",
+        site: "Blue Wall",
+        samples,
+      },
+    ]);
+    const svg = container.querySelector("svg");
+    svg.getBoundingClientRect = container.getBoundingClientRect;
+    svg.dispatchEvent(new PointerEvent("pointermove", { clientX: 360, clientY: 120 }));
+    expect(container.querySelector(".chart-tooltip").textContent).toContain(
+      "Dive 7 · Example Island · Blue Wall · 20.0 m · 1.0 min",
+    );
   });
 
   it("handles large profile selections without spreading every sample", () => {
