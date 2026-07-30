@@ -215,6 +215,31 @@ export async function addDiveSource(
   await transactionDone(transaction);
 }
 
+function isDurationOnlyChange(existingDive, existingProfile, record) {
+  if (
+    !existingProfile ||
+    !Number.isFinite(record.dive.durationSeconds) ||
+    existingDive.durationSeconds === record.dive.durationSeconds
+  ) {
+    return false;
+  }
+  const existingDuration = Number.isFinite(existingDive.durationSeconds)
+    ? existingDive.durationSeconds
+    : null;
+  const incomingWithExistingDuration = {
+    ...record.dive,
+    durationSeconds: existingDuration,
+  };
+  const normalizedExisting = {
+    ...existingDive,
+    durationSeconds: existingDuration,
+  };
+  return (
+    stableStringify(normalizedDivePayload(normalizedExisting, existingProfile)) ===
+    stableStringify(normalizedDivePayload(incomingWithExistingDuration, record.profile))
+  );
+}
+
 export async function importDiveSource(
   records,
   sourceHash,
@@ -227,9 +252,14 @@ export async function importDiveSource(
   const done = transactionDone(transaction);
   const dives = transaction.objectStore("dives");
   const profiles = transaction.objectStore("profiles");
+  const imports = transaction.objectStore("imports");
+  const previousImport = await requestResult(imports.get(`source:${sourceHash}`));
+  const isFormatUpgrade =
+    Boolean(previousImport) && previousImport.importVersion !== DIVE_IMPORT_VERSION;
   const conflicts = [];
   let added = 0;
   let duplicates = 0;
+  let enriched = 0;
 
   for (const record of records) {
     const existing = await requestResult(dives.get(record.dive.id));
@@ -253,6 +283,20 @@ export async function importDiveSource(
       if (existing.contentHash !== record.dive.contentHash) {
         dives.put({ ...existing, contentHash: record.dive.contentHash });
       }
+    } else if (
+      isFormatUpgrade &&
+      isDurationOnlyChange(
+        existing,
+        await requestResult(profiles.get(record.dive.id)),
+        record,
+      )
+    ) {
+      dives.put({
+        ...existing,
+        durationSeconds: record.dive.durationSeconds,
+        contentHash: record.dive.contentHash,
+      });
+      enriched += 1;
     } else {
       conflicts.push(
         `Dive ${record.dive.number ?? record.dive.id} has the same identity but changed content; stored version retained`,
@@ -260,7 +304,7 @@ export async function importDiveSource(
     }
   }
 
-  transaction.objectStore("imports").put({
+  imports.put({
     recordId: `source:${sourceHash}`,
     sourceHash,
     diveIds: records.map((record) => record.dive.id),
@@ -270,7 +314,7 @@ export async function importDiveSource(
     status: sourceHasConflicts || conflicts.length ? "conflict" : "complete",
   });
   await done;
-  return { added, duplicates, conflicts };
+  return { added, duplicates, enriched, conflicts };
 }
 
 export async function removeDives(ids, databasePromise = openDatabase()) {

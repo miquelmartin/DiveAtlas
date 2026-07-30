@@ -4,6 +4,7 @@ import { renderSelectionStatistics } from "../src/statistics-chart.js";
 describe("selected dive statistics", () => {
   it("renders a dive-type donut and metric distributions", () => {
     const container = document.createElement("div");
+    const selectedBins = [];
     renderSelectionStatistics(
       container,
       [
@@ -64,6 +65,7 @@ describe("selected dive statistics", () => {
             maxGf99: 110,
           },
         ],
+        onSelectDives: (dives) => selectedBins.push(dives),
       },
     );
 
@@ -104,18 +106,30 @@ describe("selected dive statistics", () => {
         "Maximum CNS",
         "Maximum GF99",
       ]);
-    expect(container.querySelectorAll(".selection-grid > section")).toHaveLength(7);
+    expect(container.querySelectorAll(".selection-grid > section")).toHaveLength(8);
     expect(container.querySelectorAll(".distribution-chart .histogram-bar-all")).toHaveLength(100);
     expect(container.querySelectorAll(".distribution-chart .histogram-bar-selected")).toHaveLength(
       100,
     );
     expect(container.querySelectorAll(".histogram-hit-area")).toHaveLength(103);
+    const firstAllBar = container.querySelector(".histogram-bar-all");
+    const firstSelectedBar = container.querySelector(".histogram-bar-selected");
+    expect(firstSelectedBar.getAttribute("x")).toBe(firstAllBar.getAttribute("x"));
+    expect(firstSelectedBar.getAttribute("width")).toBe(firstAllBar.getAttribute("width"));
     expect(container.querySelector(".monthly-histogram svg").getAttribute("aria-label")).toContain(
       "from 2025-01 to 2025-03",
     );
     expect(container.querySelector(".histogram-legend").textContent).toBe(
       "All divesSelected dives",
     );
+    expect(container.lastElementChild).toBe(container.querySelector(".histogram-legend"));
+    expect(container.querySelectorAll(".scatter-point-all")).toHaveLength(3);
+    expect(container.querySelectorAll(".scatter-point-selected")).toHaveLength(2);
+    expect(container.querySelectorAll(".scatter-hit-area")).toHaveLength(3);
+    expect(container.querySelector(".scatter-chart svg").getAttribute("aria-label")).toBe(
+      "Depth versus duration scatter plot for 3 library dives and 2 selected dives",
+    );
+    expect(container.querySelector(".scatter-chart h3").textContent).toBe("Depth vs duration");
     expect(
       container.querySelector(".distribution-chart svg").getAttribute("aria-label"),
     ).toBe(
@@ -139,6 +153,13 @@ describe("selected dive statistics", () => {
     expect(tooltip.hidden).toBe(false);
     expect(tooltip.textContent).toContain("All dives:");
     expect(tooltip.textContent).toContain("Selected dives:");
+    firstDepthBin.dispatchEvent(new MouseEvent("click"));
+    expect(selectedBins.at(-1)).toEqual([]);
+    const populatedDepthBin = [...container.querySelectorAll(".distribution-chart .histogram-hit-area")]
+      .find((bin) => bin.getAttribute("aria-label").includes("All dives: 1"));
+    populatedDepthBin.dispatchEvent(new MouseEvent("click"));
+    expect(selectedBins.at(-1)).toHaveLength(1);
+    expect(populatedDepthBin.getAttribute("role")).toBe("button");
     firstDepthBin.dispatchEvent(new PointerEvent("pointerleave"));
     expect(tooltip.hidden).toBe(true);
   });

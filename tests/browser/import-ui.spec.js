@@ -240,6 +240,14 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator(".mapping-location-row")).toHaveCount(1);
   await expect(page.locator(".mapping-location-count")).toHaveText("2 sites");
   await expect(page.locator(".mapping-site-row")).toHaveCount(2);
+  await expect(page.locator(".mapping-site-row:visible")).toHaveCount(0);
+  const locationToggle = page.getByRole("button", {
+    name: "Example Island, Test Region 2 sites",
+  });
+  await expect(locationToggle).toHaveAttribute("aria-expanded", "false");
+  await locationToggle.click();
+  await expect(locationToggle).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator(".mapping-site-row:visible")).toHaveCount(2);
   await page.getByRole("button", { name: "View" }).click();
   await expect(page.locator(".marker-cluster")).toHaveCount(1);
   await expect(page.locator(".marker-cluster")).toHaveText("2");
@@ -282,7 +290,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator("#view-dive-list")).not.toContainText("UNKNOWN");
   const showOutsideMap = page.getByRole("checkbox", { name: "Show dives outside the map" });
   const selectionActions = page.getByRole("group", { name: "Select dives" });
-  const resetFilters = page.getByRole("button", { name: "Reset filters" });
+  const resetFilters = page.getByRole("button", { name: "Clear filters" });
   await expect(resetFilters).toHaveText("×");
   const selectionButtonHeight = await selectionActions.getByRole("button", { name: "Map" }).evaluate(
     (button) => button.getBoundingClientRect().height,
@@ -365,6 +373,10 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
       overviewColumnsAligned: Math.abs(diveTypes.width - monthly.width) < 2,
       legendFits: legend.scrollWidth <= legend.clientWidth,
       chartCount: container.querySelectorAll(".selection-grid > section").length,
+      legendAfterPlots:
+        container.querySelector(".histogram-legend") === container.lastElementChild &&
+        container.querySelector(".histogram-legend").getBoundingClientRect().right <=
+          container.getBoundingClientRect().right,
       histogramWidthRatio: (() => {
         const svg = distribution.querySelector("svg");
         const bars = [...svg.querySelectorAll(".histogram-bar-all")];
@@ -380,17 +392,32 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
         ...container.querySelectorAll(".selection-grid > section"),
       ].every((element) => getComputedStyle(element).borderTopWidth === "0px"),
       unifiedStatisticsPanel: getComputedStyle(container).borderTopWidth === "0px",
+      equalBarWidths: [...container.querySelectorAll(".histogram-bar-all")].every(
+        (allBar, index) => {
+          const selectedBar = container.querySelectorAll(".histogram-bar-selected")[index];
+          return (
+            allBar.getAttribute("x") === selectedBar.getAttribute("x") &&
+            allBar.getAttribute("width") === selectedBar.getAttribute("width")
+          );
+        },
+      ),
+      histogramHeight: container.querySelector(".histogram-chart svg").getBoundingClientRect().height,
+      profileHeight: document.querySelector("#profile-chart").getBoundingClientRect().height,
     };
   });
   expect(statisticsLayout.distributionBackground).toBe(statisticsLayout.background);
   expect(statisticsLayout.profileBackground).toBe(statisticsLayout.background);
   expect(statisticsLayout.overviewColumnsAligned).toBe(true);
   expect(statisticsLayout.legendFits).toBe(true);
-  expect(statisticsLayout.chartCount).toBe(7);
+  expect(statisticsLayout.chartCount).toBe(8);
+  expect(statisticsLayout.legendAfterPlots).toBe(true);
   expect(statisticsLayout.histogramWidthRatio).toBeGreaterThan(0.95);
   expect(statisticsLayout.sharedViewBoxes).toBe(true);
   expect(statisticsLayout.borderlessCharts).toBe(true);
   expect(statisticsLayout.unifiedStatisticsPanel).toBe(true);
+  expect(statisticsLayout.equalBarWidths).toBe(true);
+  expect(statisticsLayout.histogramHeight).toBeGreaterThan(100);
+  expect(statisticsLayout.profileHeight).toBeLessThan(250);
   const histogramColors = await page.locator(".histogram-chart").first().evaluate((chart) => {
     const allBar = chart.querySelector(".histogram-bar-all");
     const selectedBar = chart.querySelector(".histogram-bar-selected");
@@ -411,6 +438,14 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   });
   expect(histogramColors.all).toBe(histogramColors.expectedAll);
   expect(histogramColors.selected).toBe(histogramColors.expectedSelected);
+  await page
+    .locator(".distribution-chart")
+    .filter({ has: page.getByRole("heading", { name: "Duration" }) })
+    .locator(".histogram-hit-area")
+    .filter({ has: page.locator("title", { hasText: "All dives: 4" }) })
+    .click();
+  await expect(page.locator("#dive-detail")).toContainText("4 dives selected");
+  await expect(page.locator(".marker-cluster.all-selected-dives")).toHaveCount(1);
   const firstMonthlyBin = page.locator(".monthly-histogram .histogram-hit-area").first();
   await firstMonthlyBin.hover();
   await expect(page.locator(".monthly-histogram .histogram-tooltip")).toContainText("All dives:");
@@ -434,17 +469,31 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     .allTextContents();
   expect(percentageAxisMaximums).toHaveLength(2);
   expect(percentageAxisMaximums.every((label) => Number.parseFloat(label) >= 100)).toBe(true);
-  const donutColors = await page.locator(".donut-key").evaluateAll((keys) =>
-    keys.map((key) => ({
-      legend: getComputedStyle(key).backgroundColor,
-      segment: getComputedStyle(
-        document.querySelector(`.donut-segment.${[...key.classList].find((name) =>
-          name.startsWith("donut-") && name !== "donut-key",
-        )}`),
-      ).stroke,
-    })),
-  );
-  expect(donutColors.every(({ legend, segment }) => legend === segment)).toBe(true);
+  const donutColors = await page.locator(".donut-key").evaluateAll((keys) => {
+    const probes = ["--cp-accent", "--cp-selection"].map((variable) => {
+      const probe = document.createElement("span");
+      probe.style.color = `var(${variable})`;
+      document.body.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    });
+    return {
+      histogramColors: probes,
+      donut: keys.map((key) => ({
+        legend: getComputedStyle(key).backgroundColor,
+        segment: getComputedStyle(
+          document.querySelector(`.donut-segment.${[...key.classList].find((name) =>
+            name.startsWith("donut-") && name !== "donut-key",
+          )}`),
+        ).stroke,
+      })),
+    };
+  });
+  expect(donutColors.donut.every(({ legend, segment }) => legend === segment)).toBe(true);
+  expect(
+    donutColors.donut.every(({ legend }) => !donutColors.histogramColors.includes(legend)),
+  ).toBe(true);
   await expect(page.locator(".profile-legend")).toHaveCount(0);
   await selectionActions.getByRole("button", { name: "None" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(0);

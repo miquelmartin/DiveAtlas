@@ -49,6 +49,9 @@
             <divetime>180</divetime><depth>0.5</depth><temperature>292.15</temperature>
           </waypoint>
         </samples>
+        <informationafterdive>
+          <diveduration>180</diveduration>
+        </informationafterdive>
       </dive>
     </repetitiongroup>
   </profiledata>

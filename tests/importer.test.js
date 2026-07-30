@@ -67,10 +67,52 @@ describe("incremental import flow", () => {
       message: "1 dive(s) imported",
     });
     expect(await getAll("dives", database)).toEqual([
-      expect.objectContaining({ number: 42, sampleCount: 0 }),
+      expect.objectContaining({ number: 42, sampleCount: 0, durationSeconds: 180 }),
     ]);
     expect(await getAll("profiles", database)).toEqual([
       expect.objectContaining({ samples: [] }),
+    ]);
+  });
+
+  it("enriches duration only when reprocessing the exact legacy source", async () => {
+    const database = await testDatabase();
+    const metadataOnly = uddf.replace(/        <samples>[\s\S]*?        <\/samples>\r?\n/, "");
+    await importSources([source("metadata-only.uddf", metadataOnly)], {
+      databasePromise: database,
+      yieldToMain: async () => {},
+    });
+    const sourceHash = await sha256Text(metadataOnly);
+    const connection = await database;
+    const [storedDive] = await getAll("dives", database);
+    const transaction = connection.transaction(["dives", "imports"], "readwrite");
+    transaction.objectStore("dives").put({
+      ...storedDive,
+      durationSeconds: null,
+      contentHash: "legacy-content-hash",
+    });
+    transaction.objectStore("imports").put({
+      recordId: `source:${sourceHash}`,
+      sourceHash,
+      diveIds: [storedDive.id],
+      sourceName: "metadata-only.uddf",
+      importedAt: new Date().toISOString(),
+      importVersion: 2,
+      status: "complete",
+    });
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+    });
+
+    const outcome = await importSources([source("metadata-only.uddf", metadataOnly)], {
+      databasePromise: database,
+      yieldToMain: async () => {},
+    });
+
+    expect(outcome.results[0]).toMatchObject({ type: "success" });
+    expect(outcome.results[0].message).toContain("1 stored dive(s) enriched");
+    expect(await getAll("dives", database)).toEqual([
+      expect.objectContaining({ durationSeconds: 180 }),
     ]);
   });
 
