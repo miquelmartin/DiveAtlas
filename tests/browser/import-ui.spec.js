@@ -19,6 +19,8 @@ async function openProductionShell(page) {
     "No dive files selected.",
   );
   await expect(page.locator("#theme-select")).toHaveValue("system");
+  await expect(page.locator(".app-brand img")).toHaveJSProperty("complete", true);
+  expect(await page.locator(".app-brand img").evaluate((image) => image.naturalWidth)).toBe(192);
   return errors;
 }
 

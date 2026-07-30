@@ -89,6 +89,19 @@ h1 {
   letter-spacing: 0.02em;
 }
 
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.app-brand img {
+  display: block;
+  width: 2.25rem;
+  height: 2.25rem;
+  object-fit: contain;
+}
+
 h2 {
   margin-bottom: 0.5rem;
   font-size: 1.25rem;
@@ -1247,6 +1260,15 @@ tbody tr:hover {
 
   .app-header {
     padding-inline: 0.4rem;
+  }
+
+  .app-brand span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .theme-control {
