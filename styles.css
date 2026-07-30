@@ -547,22 +547,6 @@ tbody tr:hover {
   overflow-y: auto;
 }
 
-.country-group {
-  border-bottom: 1px solid var(--cp-border);
-}
-
-.country-group > summary {
-  position: sticky;
-  z-index: 1;
-  top: 0;
-  padding: 0.25rem 0.4rem;
-  background: var(--cp-surface-soft);
-  color: var(--cp-text);
-  font-size: 0.75rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .dive-row {
   width: 100%;
   min-height: 2.55rem;
@@ -694,11 +678,15 @@ tbody tr:hover {
 
 .profile-pane {
   display: grid;
+  grid-template-areas:
+    "chart"
+    "details";
   grid-template-rows: minmax(14rem, 1fr) auto;
   overflow: auto;
 }
 
 .profile-chart {
+  grid-area: chart;
   position: relative;
   min-height: 0;
   padding: 0.35rem;
@@ -798,19 +786,23 @@ tbody tr:hover {
 
 .chart-tooltip {
   position: absolute;
-  right: 0.8rem;
-  bottom: 0.55rem;
-  left: 0.8rem;
-  min-height: 1.4rem;
-  overflow: hidden;
-  color: var(--cp-text-muted);
+  z-index: 2;
+  display: grid;
+  gap: 0.2rem;
+  width: max-content;
+  max-width: calc(100% - 12px);
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--cp-border-strong);
+  background: var(--cp-panel-strong);
+  color: var(--cp-text);
   font-size: 0.72rem;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: left;
+  pointer-events: none;
+  box-shadow: var(--cp-shadow);
 }
 
 .dive-detail {
+  grid-area: details;
   padding: 0.45rem 0.6rem;
   border-top: 1px solid var(--cp-border);
   background: var(--cp-bg-elevated);

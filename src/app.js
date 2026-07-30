@@ -12,7 +12,7 @@ import { enrichMappingCountry, UNASSIGNED_COUNTRY } from "./country.js";
 import { initializeMap, renderMap } from "./map.js";
 import { renderProfileChart } from "./profile-chart.js";
 import { downloadJson, formatBytes } from "./utils.js";
-import { filterDives, filterDivesToBounds, groupAndSortDives } from "./view-model.js";
+import { filterDives, filterDivesToBounds, sortDives } from "./view-model.js";
 
 const state = {
   dives: [],
@@ -31,7 +31,6 @@ const state = {
   dateValues: [],
   sortField: "number",
   sortDirection: "desc",
-  collapsedCountries: new Set(),
 };
 
 const elements = Object.fromEntries(
@@ -471,6 +470,9 @@ async function renderSelectedDiveDetails() {
   const profiles = await Promise.all(
     dives.map(async (dive) => ({
       label: `Dive ${dive.number ?? "—"} · ${dive.site}`,
+      number: dive.number,
+      location: dive.location,
+      site: dive.site,
       samples: (await getRecord("profiles", dive.id))?.samples ?? [],
     })),
   );
@@ -500,62 +502,49 @@ function renderView({ updateMap = true, fitMap = false } = {}) {
     ...dive,
     country: lookup.get(dive.mappingKey)?.country ?? "Unmapped",
   }));
-  groupAndSortDives(diveRows, state.sortField, state.sortDirection).forEach((group) => {
-    const details = document.createElement("details");
-    details.className = "country-group";
-    details.open = !state.collapsedCountries.has(group.country);
-    details.addEventListener("toggle", () => {
-      if (details.open) state.collapsedCountries.delete(group.country);
-      else state.collapsedCountries.add(group.country);
+  sortDives(diveRows, state.sortField, state.sortDirection).forEach((dive) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "dive-row";
+    const selected = state.selectedViewDives.has(dive.id);
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", selected);
+    button.setAttribute(
+      "aria-label",
+      `Dive ${dive.number ?? "unknown"}, ${dive.location}, ${dive.site}`,
+    );
+    const values = [
+      ["dive-cell dive-number", dive.number ?? "—"],
+      ["dive-cell", dive.location],
+      ["dive-cell", dive.site],
+      ["dive-cell dive-country", dive.country],
+    ];
+    values.forEach(([className, value]) => {
+      const item = document.createElement("span");
+      item.className = className;
+      item.textContent = value;
+      item.title = String(value);
+      button.append(item);
     });
-    const summary = document.createElement("summary");
-    summary.textContent = `${group.country} (${group.dives.length})`;
-    details.append(summary);
-    group.dives.forEach((dive) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "dive-row";
-      const selected = state.selectedViewDives.has(dive.id);
-      button.classList.toggle("is-selected", selected);
-      button.setAttribute("aria-pressed", selected);
-      button.setAttribute(
-        "aria-label",
-        `Dive ${dive.number ?? "unknown"}, ${dive.location}, ${dive.site}`,
-      );
-      const values = [
-        ["dive-cell dive-number", dive.number ?? "—"],
-        ["dive-cell", dive.location],
-        ["dive-cell", dive.site],
-        ["dive-cell dive-country", dive.country],
-      ];
-      values.forEach(([className, value]) => {
-        const item = document.createElement("span");
-        item.className = className;
-        item.textContent = value;
-        item.title = String(value);
-        button.append(item);
-      });
-      const stats = document.createElement("span");
-      stats.className = "dive-stats";
-      const depth = Number.isFinite(dive.maxDepth) ? `${dive.maxDepth.toFixed(1)} m` : "—";
-      const duration = Number.isFinite(dive.durationSeconds)
-        ? `${Math.round(dive.durationSeconds / 60)} min`
-        : "—";
-      const deco = document.createElement("span");
-      const type = diveType(dive);
-      deco.className = type.className;
-      deco.textContent = type.label;
-      stats.append(
-        document.createTextNode(
-          `${dive.dateTime?.slice(0, 10) || "Unknown date"} · ${depth} · ${duration} · `,
-        ),
-        deco,
-      );
-      button.append(stats);
-      button.addEventListener("click", () => void toggleViewDives([dive.id]));
-      details.append(button);
-    });
-    elements["view-dive-list"].append(details);
+    const stats = document.createElement("span");
+    stats.className = "dive-stats";
+    const depth = Number.isFinite(dive.maxDepth) ? `${dive.maxDepth.toFixed(1)} m` : "—";
+    const duration = Number.isFinite(dive.durationSeconds)
+      ? `${Math.round(dive.durationSeconds / 60)} min`
+      : "—";
+    const deco = document.createElement("span");
+    const type = diveType(dive);
+    deco.className = type.className;
+    deco.textContent = type.label;
+    stats.append(
+      document.createTextNode(
+        `${dive.dateTime?.slice(0, 10) || "Unknown date"} · ${depth} · ${duration} · `,
+      ),
+      deco,
+    );
+    button.append(stats);
+    button.addEventListener("click", () => void toggleViewDives([dive.id]));
+    elements["view-dive-list"].append(button);
   });
   if (!dives.length) {
     const message = document.createElement("p");

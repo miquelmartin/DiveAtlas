@@ -109,7 +109,8 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator(".marker-cluster")).toHaveText("2");
   await expect(page.locator(".leaflet-marker-icon:not(.marker-cluster)")).toHaveCount(1);
   await expect(page.locator('.leaflet-tile[src*="server.arcgisonline.com"]').first()).toBeAttached();
-  await expect(page.locator(".country-group > summary")).toHaveText(["France (2)", "Japan (1)"]);
+  await expect(page.locator(".dive-row")).toHaveCount(3);
+  await expect(page.locator(".country-group")).toHaveCount(0);
 
   await page.locator(".leaflet-control-layers-toggle").hover({ force: true });
   await expect(page.getByText("Satellite", { exact: true })).toBeVisible();
@@ -126,8 +127,11 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator("#profile-chart .profile-line")).toHaveCount(2);
   await expect(page.locator(".profile-axis-label")).toHaveCount(10);
   await page.locator("#profile-chart svg").hover({ position: { x: 200, y: 100 } });
+  await expect(page.locator(".chart-tooltip")).toContainText(
+    "Dive 44 · Example Island, Test Region · Far Reef",
+  );
+  await expect(page.locator(".chart-tooltip")).toContainText("m ·");
   await expect(page.locator(".chart-tooltip")).toContainText("min");
-  await expect(page.locator(".chart-tooltip")).toContainText("m");
 
   const [mapBox, chartBox] = await Promise.all([
     page.locator("#map").boundingBox(),
@@ -155,18 +159,12 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await page.locator("#clear-filters").click();
   await expect(page.locator("#view-result-count")).toHaveText("3 dives");
 
-  await page.locator(".country-group").filter({ hasText: "France (2)" }).locator("summary").click();
-  await expect(page.locator(".country-group").filter({ hasText: "France (2)" })).not.toHaveAttribute(
-    "open",
-    "",
-  );
   await page.locator('[data-sort="country"]').click();
   await expect(page.locator('[data-sort="country"]')).toHaveAttribute("data-direction", "asc");
-  await expect(page.locator(".country-group > summary")).toHaveText(["France (2)", "Japan (1)"]);
-  await expect(page.locator(".country-group").filter({ hasText: "France (2)" })).not.toHaveAttribute(
-    "open",
-    "",
-  );
+  await expect(page.locator(".dive-country")).toHaveText(["France", "France", "Japan"]);
+  const chartBoxAfterSort = await page.locator("#profile-chart").boundingBox();
+  const detailBox = await page.locator("#dive-detail").boundingBox();
+  expect(chartBoxAfterSort.y).toBeLessThan(detailBox.y);
   expect(await page.locator(".tagline").count()).toBe(0);
   expect(errors).toEqual([]);
 });

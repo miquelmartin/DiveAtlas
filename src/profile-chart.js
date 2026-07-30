@@ -117,6 +117,7 @@ export function renderProfileChart(container, samples) {
   const tooltip = document.createElement("output");
   tooltip.className = "chart-tooltip";
   tooltip.setAttribute("aria-live", "polite");
+  tooltip.hidden = true;
   svg.append(cursor);
   const legend = document.createElement("ul");
   legend.className = "profile-legend";
@@ -149,14 +150,32 @@ export function renderProfileChart(container, samples) {
     cursor.setAttribute("x1", x);
     cursor.setAttribute("x2", x);
     cursor.removeAttribute("hidden");
-    tooltip.value = nearest
-      .map(
-        ({ label, sample }) =>
-          `${label}: ${Math.round(sample.time / 60)} min · ${sample.depth.toFixed(1)} m${
-            Number.isFinite(sample.temperature) ? ` · ${sample.temperature.toFixed(1)} °C` : ""
-          }`,
-      )
-      .join(" | ");
+    tooltip.replaceChildren(
+      ...nearest.map(({ label, sample }, index) => {
+        const item = document.createElement("span");
+        const dive = series[index];
+        const number = dive.number ?? label.replace(/^Dive\s+/, "").split(" · ")[0];
+        item.textContent = `Dive ${number} · ${dive.location ?? "Unknown location"} · ${
+          dive.site ?? "Unknown site"
+        } · ${sample.depth.toFixed(1)} m · ${(sample.time / 60).toFixed(1)} min`;
+        return item;
+      }),
+    );
+    const containerBounds = container.getBoundingClientRect();
+    tooltip.hidden = false;
+    const tooltipWidth = tooltip.offsetWidth;
+    const tooltipHeight = tooltip.offsetHeight;
+    tooltip.style.left = `${Math.max(
+      6,
+      Math.min(event.clientX - containerBounds.left + 12, containerBounds.width - tooltipWidth - 6),
+    )}px`;
+    tooltip.style.top = `${Math.max(
+      6,
+      Math.min(event.clientY - containerBounds.top + 12, containerBounds.height - tooltipHeight - 6),
+    )}px`;
   });
-  svg.addEventListener("pointerleave", () => cursor.setAttribute("hidden", "true"));
+  svg.addEventListener("pointerleave", () => {
+    cursor.setAttribute("hidden", "true");
+    tooltip.hidden = true;
+  });
 }
