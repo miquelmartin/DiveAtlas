@@ -5,6 +5,11 @@ import { expect, test } from "@playwright/test";
 const representative = join(process.cwd(), "tests", "fixtures", "representative.uddf");
 const malformed = join(process.cwd(), "tests", "fixtures", "malformed.uddf");
 const mappings = join(process.cwd(), "tests", "fixtures", "mappings.csv");
+const sampleDives = [
+  join(process.cwd(), "samples", "bajon-del-rio.uddf"),
+  join(process.cwd(), "samples", "ss-thistlegorm.uddf"),
+];
+const sampleMappings = join(process.cwd(), "samples", "locations.csv");
 
 async function openProductionShell(page) {
   const errors = [];
@@ -22,10 +27,52 @@ async function openProductionShell(page) {
     "aria-pressed",
     "true",
   );
+  await expect(page.locator("#welcome-dialog")).toBeVisible();
+  await page.getByRole("button", { name: "Let's go!" }).click();
   await expect(page.locator(".app-brand img")).toHaveJSProperty("complete", true);
   expect(await page.locator(".app-brand img").evaluate((image) => image.naturalWidth)).toBe(192);
   return errors;
 }
+
+test("empty libraries open the data workspace with a dismissible welcome dialog", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const dialog = page.locator("#welcome-dialog");
+  await expect(page.locator("#data-workspace")).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("This is your Dive Atlas");
+  await expect(dialog).toContainText("DiveAtlas needs two inputs:");
+  await expect(dialog).toContainText("no dive files or dive records are ever sent");
+  await expect(dialog.getByRole("link", { name: "privacy notice" })).toHaveAttribute(
+    "href",
+    "PRIVACY.md",
+  );
+  await expect(dialog.locator("ol > li")).toHaveCount(2);
+  await expect(dialog.getByRole("link", { name: "UDDF format" })).toHaveAttribute(
+    "href",
+    "https://www.streit.cc/extern/uddf_v321/en/index.html",
+  );
+  await expect(dialog.locator('a[href*="/tree/main/samples"]')).toHaveAttribute(
+    "href",
+    "https://github.com/miquelmartin/DiveAtlas/tree/main/samples",
+  );
+  await expect(dialog.getByRole("link", { name: "here" }).last()).toHaveAttribute(
+    "href",
+    "https://github.com/miquelmartin/DiveAtlas/issues",
+  );
+
+  await page.mouse.click(2, 2);
+  await expect(dialog).not.toBeVisible();
+  await page.reload();
+  await expect(dialog).toBeVisible();
+  await page.getByRole("button", { name: "Close welcome dialog" }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.reload();
+  await expect(dialog).toBeVisible();
+  await page.getByRole("button", { name: "Let's go!" }).click();
+  await expect(dialog).not.toBeVisible();
+});
 
 test("dedicated file pickers show selection, results, and refreshed tables", async ({ page }) => {
   const errors = await openProductionShell(page);
@@ -77,6 +124,7 @@ test("dedicated file pickers show selection, results, and refreshed tables", asy
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   expect(await page.evaluate(() => localStorage.getItem("diveatlas-theme"))).toBe("dark");
   await page.reload();
+  await expect(page.locator("#welcome-dialog")).not.toBeVisible();
   await expect(page.getByRole("button", { name: "Dark" })).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -107,13 +155,13 @@ test("mobile file selection imports and the three view panels stack", async ({ p
     page.waitForEvent("filechooser"),
     divePicker.click(),
   ]);
-  await diveChooser.setFiles(representative);
-  await expect(page.locator("#dive-import-results")).toContainText("1 dive(s) imported");
+  await diveChooser.setFiles(sampleDives);
+  await expect(page.locator("#dive-count")).toHaveText("2");
   const [repeatDiveChooser] = await Promise.all([
     page.waitForEvent("filechooser"),
     divePicker.click(),
   ]);
-  await repeatDiveChooser.setFiles(representative);
+  await repeatDiveChooser.setFiles(sampleDives);
   await expect(page.locator("#dive-import-results")).toContainText(
     "Exact source already imported; skipped",
   );
@@ -123,7 +171,7 @@ test("mobile file selection imports and the three view panels stack", async ({ p
     page.waitForEvent("filechooser"),
     coordinatePicker.click(),
   ]);
-  await coordinateChooser.setFiles(mappings);
+  await coordinateChooser.setFiles(sampleMappings);
   await expect(page.locator("#coordinate-import-results")).toContainText("2 mapping(s) added");
   const backupPicker = page.locator("#backup-file");
   await expect(backupPicker).toBeVisible();

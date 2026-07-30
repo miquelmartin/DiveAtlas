@@ -32,6 +32,8 @@ npm run check
 
 ## Import workflow
 
+The [`samples`](samples) folder contains two sanitized, synthetic UDDF dive profiles and the matching four-column coordinate CSV. They can be used to try the complete import and map workflow without personal dive data.
+
 1. Open **Data → Import dives** and use the visible native file picker (mobile or desktop), or drop one or hundreds of `.uddf` files. The selected count and names appear immediately and import starts automatically.
 2. Use the separate native **Import coordinates** picker, or drop one `.csv`; it merges immediately, adding new sites and replacing matching stored coordinates with the newest row.
 3. Dive files are read one at a time, the page yields between files, and cancellation stops before the next file.

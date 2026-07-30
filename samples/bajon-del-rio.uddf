@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uddf xmlns="http://www.streit.cc/uddf/3.2/" version="3.2.0">
+  <diver>
+    <owner>
+      <equipment>
+        <divecomputer id="sample-computer">
+          <manufacturer><name>Shearwater</name></manufacturer>
+          <model>Sample computer</model>
+          <serialnumber>SAMPLE</serialnumber>
+        </divecomputer>
+      </equipment>
+    </owner>
+  </diver>
+  <divesite>
+    <site id="Bajon del Rio : Fuerteventura, Corralejo">
+      <name>Bajon del Rio</name>
+      <geography><location>Fuerteventura, Corralejo</location></geography>
+    </site>
+  </divesite>
+  <decomodel>
+    <buehlmann id="sample-deco">
+      <gradientfactorlow>40</gradientfactorlow>
+      <gradientfactorhigh>85</gradientfactorhigh>
+    </buehlmann>
+  </decomodel>
+  <profiledata>
+    <repetitiongroup>
+      <dive id="sample-bajon-del-rio">
+        <informationbeforedive>
+          <divenumber>1</divenumber>
+          <datetime>2024-06-10T09:30:00Z</datetime>
+          <surfacepressure>1.013</surfacepressure>
+        </informationbeforedive>
+        <samples>
+          <waypoint>
+            <divetime>0</divetime><depth>0</depth><temperature>295.15</temperature>
+            <nodecotime>5940</nodecotime><gradientfactor>0</gradientfactor>
+          </waypoint>
+          <waypoint>
+            <divetime>180</divetime><depth>14.0</depth><temperature>294.15</temperature>
+            <nodecotime>2700</nodecotime><gradientfactor>24</gradientfactor><cns>1</cns>
+          </waypoint>
+          <waypoint>
+            <divetime>600</divetime><depth>27.8</depth><temperature>293.15</temperature>
+            <nodecotime>960</nodecotime><gradientfactor>48</gradientfactor><cns>4</cns>
+          </waypoint>
+          <waypoint>
+            <divetime>1800</divetime><depth>22.4</depth><temperature>293.15</temperature>
+            <nodecotime>480</nodecotime><gradientfactor>61</gradientfactor><cns>9</cns>
+          </waypoint>
+          <waypoint>
+            <divetime>2520</divetime><depth>5.0</depth><temperature>294.15</temperature>
+            <nodecotime>2100</nodecotime><gradientfactor>39</gradientfactor><cns>11</cns>
+          </waypoint>
+          <waypoint>
+            <divetime>2880</divetime><depth>0.5</depth><temperature>295.15</temperature>
+            <nodecotime>5940</nodecotime><gradientfactor>18</gradientfactor><cns>11</cns>
+          </waypoint>
+        </samples>
+        <informationafterdive>
+          <diveduration>2880</diveduration>
+        </informationafterdive>
+      </dive>
+    </repetitiongroup>
+  </profiledata>
+</uddf>
