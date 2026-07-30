@@ -790,16 +790,26 @@ tbody tr:hover {
   stroke-width: 3;
 }
 
-.map-dive-tooltip,
-.map-dive-popup .leaflet-popup-content-wrapper,
-.map-dive-popup .leaflet-popup-tip {
+.map-dive-tooltip {
   background: var(--cp-panel-strong);
   color: var(--cp-text);
-}
-
-.map-dive-tooltip {
   border-color: var(--cp-border-strong);
   box-shadow: var(--cp-shadow);
+}
+
+.map-dive-tooltip.leaflet-tooltip-top::before {
+  border-top-color: var(--cp-panel-strong);
+}
+
+.map-dive-tooltip.leaflet-tooltip-top::after {
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  width: 12px;
+  height: 2px;
+  margin-left: -6px;
+  background: var(--cp-panel-strong);
+  content: "";
 }
 
 .map-dive-summary {
@@ -932,14 +942,44 @@ tbody tr:hover {
 .profile-chart {
   grid-area: chart;
   position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
   padding: 0.35rem;
+}
+
+.profile-chart-title {
+  margin: 0 0 0.25rem;
+  color: var(--cp-text-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.profile-empty {
+  display: grid;
+  align-self: stretch;
+  place-items: center;
+  margin: 0;
+  color: var(--cp-text-muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.selection-empty {
+  grid-area: 1 / 1 / -1 / -1;
+  align-self: center;
+  justify-self: center;
+  margin: 0;
+  color: var(--cp-text-muted);
+  font-size: 0.78rem;
+  text-align: center;
 }
 
 .profile-chart > svg {
   width: 100%;
   height: 100%;
-  min-height: 13rem;
+  min-height: 0;
   border: 1px solid var(--cp-border);
   background: var(--cp-surface);
 }
@@ -1036,16 +1076,25 @@ tbody tr:hover {
   text-transform: uppercase;
 }
 
-.selection-overview {
+.selection-grid {
   display: grid;
-  grid-template-columns: minmax(7.5rem, 0.8fr) minmax(12.5rem, 1.2fr);
-  gap: 0.55rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.monthly-histogram,
+.dive-type-summary,
+.distribution-chart {
+  min-width: 0;
+  padding: 0.25rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
 }
 
 .monthly-histogram svg {
   display: block;
   width: 100%;
-  height: 6.5rem;
+  height: 5.5rem;
 }
 
 .monthly-bar {
@@ -1065,8 +1114,6 @@ tbody tr:hover {
   display: grid;
   grid-template-columns: 4.5rem minmax(6.5rem, 1fr);
   align-items: center;
-  padding-left: 0.55rem;
-  border-left: 1px solid var(--cp-border);
 }
 
 .dive-type-summary h3 {
@@ -1159,20 +1206,8 @@ tbody tr:hover {
   background: var(--cp-border-strong);
 }
 
-.selection-distributions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.4rem;
-  margin-top: 0.35rem;
-  padding-top: 0.4rem;
-  border-top: 1px solid var(--cp-border);
-}
-
 .distribution-chart {
   min-width: 0;
-  padding: 0.25rem;
-  border: 1px solid var(--cp-border);
-  background: var(--cp-surface);
 }
 
 .distribution-chart svg {
@@ -1296,14 +1331,11 @@ tbody tr:hover {
     padding: 0.3rem;
   }
 
-  .selection-overview {
+  .selection-grid {
     grid-template-columns: 1fr;
   }
 
   .dive-type-summary {
-    padding-top: 0.4rem;
-    padding-left: 0;
-    border-top: 1px solid var(--cp-border);
-    border-left: 0;
+    padding: 0.25rem;
   }
 }

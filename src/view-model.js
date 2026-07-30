@@ -80,16 +80,24 @@ export function monthlyDiveCounts(dives, from, to) {
   });
 }
 
-export function histogramBins(values, requestedBins = 10, { lowerBound = null } = {}) {
+export function histogramBins(
+  values,
+  requestedBins = 10,
+  { lowerBound = null, upperBound = null } = {},
+) {
   const finiteValues = values.filter(Number.isFinite);
   if (!finiteValues.length) return [];
   const binCount = Math.max(1, Math.floor(requestedBins));
-  let minimum = Math.min(...finiteValues);
-  let maximum = Math.max(...finiteValues);
+  let minimum = Number.isFinite(lowerBound) ? lowerBound : Math.min(...finiteValues);
+  let maximum = Number.isFinite(upperBound) ? upperBound : Math.max(...finiteValues);
   if (minimum === maximum) {
     const padding = Math.abs(minimum) * 0.05 || 0.5;
-    minimum -= padding;
-    maximum += padding;
+    if (Number.isFinite(lowerBound)) {
+      maximum += padding * 2;
+    } else {
+      minimum -= padding;
+      maximum += padding;
+    }
     if (Number.isFinite(lowerBound) && minimum < lowerBound) {
       maximum += lowerBound - minimum;
       minimum = lowerBound;
@@ -103,7 +111,10 @@ export function histogramBins(values, requestedBins = 10, { lowerBound = null } 
     count: 0,
   }));
   finiteValues.forEach((value) => {
-    const index = Math.min(Math.floor((value - minimum) / width), binCount - 1);
+    const index = Math.max(
+      0,
+      Math.min(Math.floor((value - minimum) / width), binCount - 1),
+    );
     bins[index].count += 1;
   });
   return bins;

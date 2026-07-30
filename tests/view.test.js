@@ -119,6 +119,14 @@ it("creates bounded histogram bins and retains the maximum value", () => {
   expect(bins).toHaveLength(4);
   expect(bins.map((bin) => bin.count)).toEqual([1, 1, 1, 2]);
   expect(bins.at(-1).end).toBe(20);
+  const fixedDomainBins = histogramBins([25, 50], 20, {
+    lowerBound: 0,
+    upperBound: 100,
+  });
+  expect(fixedDomainBins).toHaveLength(20);
+  expect(fixedDomainBins[0].start).toBe(0);
+  expect(fixedDomainBins.at(-1).end).toBe(100);
+  expect(fixedDomainBins.reduce((total, bin) => total + bin.count, 0)).toBe(2);
 });
 
 describe("profile rendering", () => {
@@ -136,6 +144,7 @@ describe("profile rendering", () => {
     const container = document.createElement("div");
     renderProfileChart(container, samples);
     const svg = container.querySelector("svg");
+    expect(container.querySelector(".profile-chart-title").textContent).toBe("Depth Profile");
     expect(svg.getAttribute("role")).toBe("img");
     expect(svg.getAttribute("aria-label")).toBe("1 depth profile over dive time");
     expect(container.querySelectorAll("path")).toHaveLength(2);
@@ -195,7 +204,7 @@ describe("profile rendering", () => {
     );
 
     renderProfileChart(container, [{ label: "Dive 1", samples: [] }]);
-    expect(container.textContent).toBe(
+    expect(container.querySelector(".profile-empty").textContent).toBe(
       "No profile samples are available for the selected dive.",
     );
   });

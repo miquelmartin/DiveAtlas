@@ -123,7 +123,6 @@ export function renderMap(diveGroups, { fit = false, selectedDiveIds = new Set()
         icon: diveIcon(selected),
         diveSelected: selected,
         diveLabel: dive.number ?? "unknown",
-        title: `Dive ${dive.number ?? "unknown"}${selected ? ", selected" : ""}`,
       });
       const details = markerDetails(dive, mapping);
       marker.bindTooltip(details, {
@@ -131,10 +130,14 @@ export function renderMap(diveGroups, { fit = false, selectedDiveIds = new Set()
         direction: "top",
         offset: [0, -8],
       });
-      marker.bindPopup(details, { autoPan: false, className: "map-dive-popup" });
-      marker.on("click", () => onMarkerSelect([dive.id]));
+      marker.on("click", () => {
+        marker.openTooltip();
+        onMarkerSelect([dive.id]);
+      });
       marker.on("add", () => {
-        marker.getElement()?.setAttribute("aria-pressed", String(marker.options.diveSelected));
+        const element = marker.getElement();
+        element?.setAttribute("aria-pressed", String(marker.options.diveSelected));
+        element?.setAttribute("aria-label", `Dive ${marker.options.diveLabel}`);
       });
       markersByDiveId.set(dive.id, marker);
       markerLayer.addLayer(marker);
@@ -153,9 +156,10 @@ export function updateMapSelection(selectedDiveIds) {
     const selected = selectedDiveIds.has(diveId);
     if (marker.options.diveSelected === selected) return;
     marker.options.diveSelected = selected;
-    marker.options.title = `Dive ${marker.options.diveLabel}${selected ? ", selected" : ""}`;
     marker.setIcon(diveIcon(selected));
-    marker.getElement()?.setAttribute("aria-pressed", String(selected));
+    const element = marker.getElement();
+    element?.setAttribute("aria-pressed", String(selected));
+    element?.setAttribute("aria-label", `Dive ${marker.options.diveLabel}`);
   });
   markerLayer.refreshClusters?.();
 }

@@ -151,8 +151,10 @@ test("coincident dive clusters spiderfy for individual selection", async ({ page
       width: "3px",
     })),
   );
-  await expect(page.locator(".leaflet-marker-icon[title='Dive 100']")).toBeVisible();
-  await page.locator(".leaflet-marker-icon[title='Dive 100']").hover();
+  const dive100Marker = page.locator("#map .leaflet-marker-icon[aria-label='Dive 100']");
+  await expect(dive100Marker).toBeVisible();
+  await expect(dive100Marker).not.toHaveAttribute("title");
+  await dive100Marker.hover();
   const tooltip = page.getByRole("tooltip", { name: /^Dive 100\b/ });
   for (const value of [
     "Dive 100",
@@ -169,12 +171,17 @@ test("coincident dive clusters spiderfy for individual selection", async ({ page
   ]) {
     await expect(tooltip).toContainText(value);
   }
-  await page.locator(".leaflet-marker-icon[title='Dive 100']").click();
-  const popup = page.locator(".map-dive-popup");
-  for (const value of ["Dive 100", "2025-06-01", "Example Island, Test Region", "Blue Wall", "24.2 m", "3 min"]) {
-    await expect(popup).toContainText(value);
-  }
-  await expect(page.getByRole("button", { name: /Dive 100,/ })).toHaveAttribute(
+  const tooltipPointer = await tooltip.evaluate((element) => ({
+    background: getComputedStyle(element).backgroundColor,
+    pointer: getComputedStyle(element, "::before").borderTopColor,
+    seamCover: getComputedStyle(element, "::after").backgroundColor,
+  }));
+  expect(tooltipPointer.pointer).toBe(tooltipPointer.background);
+  expect(tooltipPointer.seamCover).toBe(tooltipPointer.background);
+  await dive100Marker.click();
+  await expect(tooltip).toBeVisible();
+  await expect(page.locator(".leaflet-popup")).toHaveCount(0);
+  await expect(dive100Marker).toHaveAttribute(
     "aria-pressed",
     "true",
   );
@@ -234,9 +241,10 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator(".marker-cluster")).toHaveText("2");
   await page.locator(".marker-cluster").click();
   await expect(page.locator(".leaflet-marker-icon.dive-map-marker")).toHaveCount(3);
-  await expect(page.locator(".leaflet-marker-icon[title='Dive 42']")).toBeVisible();
-  await page.locator(".leaflet-marker-icon[title='Dive 42']").click();
-  await expect(page.getByRole("button", { name: /Dive 42,/ })).toHaveAttribute(
+  const dive42Marker = page.locator("#map .leaflet-marker-icon[aria-label='Dive 42']");
+  await expect(dive42Marker).toBeVisible();
+  await dive42Marker.click();
+  await expect(dive42Marker).toHaveAttribute(
     "aria-pressed",
     "true",
   );
@@ -283,12 +291,22 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await showOutsideMap.check();
   await expect(page.locator(".dive-row")).toHaveCount(4);
   await page.getByRole("button", { name: /Dive 45,/ }).click();
-  await expect(page.locator("#profile-chart")).toHaveText(
+  await expect(page.locator("#profile-chart")).toContainText(
     "No profile samples are available for the selected dive.",
   );
+  await expect(page.locator("#profile-chart .profile-empty")).toHaveCSS("place-items", "center");
   await expect(page.locator("#dive-detail")).toContainText("Unmapped Cove");
   await selectionActions.getByRole("button", { name: "None" }).click();
   await showOutsideMap.uncheck();
+  await expect(page.locator("#selection-empty")).toHaveText(
+    "Select a dive from the list or map.",
+  );
+  await expect(page.locator("#selection-empty")).toBeVisible();
+  await expect(
+    page.locator(
+      "#profile-chart:not([hidden]), #selection-stats:not([hidden]), #dive-detail:not([hidden])",
+    ),
+  ).toHaveCount(0);
 
   await selectionActions.getByRole("button", { name: "All" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(3);
@@ -319,8 +337,9 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     "3 decompression dives",
   ]);
   await expect(page.locator(".distribution-chart")).toHaveCount(5);
-  await expect(page.locator(".distribution-bar")).toHaveCount(50);
+  await expect(page.locator(".distribution-bar")).toHaveCount(100);
   await expect(page.getByRole("heading", { name: "Maximum GF99" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Depth Profile" })).toBeVisible();
   const statisticsLayout = await page.locator("#selection-stats").evaluate((container) => {
     const background = getComputedStyle(container).backgroundColor;
     const profileBackground = getComputedStyle(
@@ -334,14 +353,31 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
       background,
       profileBackground,
       distributionBackground: getComputedStyle(distribution).backgroundColor,
-      diveTypesWiderThanMonthly: diveTypes.width > monthly.width,
+      overviewColumnsAligned: Math.abs(diveTypes.width - monthly.width) < 2,
       legendFits: legend.scrollWidth <= legend.clientWidth,
+      chartCount: container.querySelectorAll(".selection-grid > section").length,
+      histogramWidthRatio: (() => {
+        const svg = distribution.querySelector("svg");
+        const bars = [...svg.querySelectorAll(".distribution-bar")];
+        const first = Number(bars[0].getAttribute("x"));
+        const last = bars.at(-1);
+        return (Number(last.getAttribute("x")) + Number(last.getAttribute("width")) - first) / 240;
+      })(),
     };
   });
   expect(statisticsLayout.distributionBackground).toBe(statisticsLayout.background);
   expect(statisticsLayout.profileBackground).toBe(statisticsLayout.background);
-  expect(statisticsLayout.diveTypesWiderThanMonthly).toBe(true);
+  expect(statisticsLayout.overviewColumnsAligned).toBe(true);
   expect(statisticsLayout.legendFits).toBe(true);
+  expect(statisticsLayout.chartCount).toBe(7);
+  expect(statisticsLayout.histogramWidthRatio).toBeGreaterThan(0.95);
+  const percentageAxisMaximums = await page
+    .locator(".distribution-chart")
+    .filter({ has: page.getByRole("heading", { name: /Maximum (CNS|GF99)/ }) })
+    .locator(".selection-axis-label:last-of-type")
+    .allTextContents();
+  expect(percentageAxisMaximums).toHaveLength(2);
+  expect(percentageAxisMaximums.every((label) => Number.parseFloat(label) >= 100)).toBe(true);
   const donutColors = await page.locator(".donut-key").evaluateAll((keys) =>
     keys.map((key) => ({
       legend: getComputedStyle(key).backgroundColor,
@@ -401,6 +437,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await page.getByRole("button", { name: /Dive 42,/ }).click();
   await expect(page.locator("#dive-detail")).toContainText("2 dives selected");
   await expect(page.locator("#profile-chart .profile-line")).toHaveCount(2);
+  await expect(page.getByRole("heading", { name: "Depth Profile" })).toBeVisible();
   await expect(page.locator(".profile-axis-label")).toHaveCount(10);
   await page.locator("#profile-chart svg").hover({ position: { x: 200, y: 100 } });
   await expect(page.locator(".chart-tooltip")).toContainText(

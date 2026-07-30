@@ -92,6 +92,7 @@ const elements = Object.fromEntries(
     "view-dive-list",
     "dive-detail",
     "selection-stats",
+    "selection-empty",
     "profile-chart",
     "map",
   ].map((id) => [id, document.getElementById(id)]),
@@ -487,17 +488,34 @@ function selectedDateExtent() {
 
 function renderSelectionStats() {
   const dives = state.dives.filter((dive) => state.selectedViewDives.has(dive.id));
-  renderSelectionStatistics(elements["selection-stats"], dives, selectedDateExtent());
+  setSelectionPaneEmpty(dives.length === 0);
+  if (!dives.length) {
+    elements["selection-stats"].replaceChildren();
+    return;
+  }
+  renderSelectionStatistics(elements["selection-stats"], dives, {
+    ...selectedDateExtent(),
+    libraryDives: state.dives,
+  });
+}
+
+function setSelectionPaneEmpty(empty) {
+  elements["selection-empty"].hidden = !empty;
+  ["profile-chart", "selection-stats", "dive-detail"].forEach((id) => {
+    elements[id].hidden = empty;
+  });
 }
 
 async function renderSelectedDiveDetails() {
   const renderVersion = ++state.profileRenderVersion;
   const dives = state.dives.filter((dive) => state.selectedViewDives.has(dive.id));
   if (!dives.length) {
-    elements["dive-detail"].innerHTML = "<p>Select one or more dives to compare profiles.</p>";
-    renderProfileChart(elements["profile-chart"], []);
+    setSelectionPaneEmpty(true);
+    elements["dive-detail"].replaceChildren();
+    elements["profile-chart"].replaceChildren();
     return;
   }
+  setSelectionPaneEmpty(false);
   const description = document.createElement("p");
   description.textContent =
     dives.length === 1
