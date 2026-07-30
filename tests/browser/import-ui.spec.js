@@ -153,7 +153,7 @@ test("coincident dive clusters spiderfy for individual selection", async ({ page
   );
   await expect(page.locator(".leaflet-marker-icon[title='Dive 100']")).toBeVisible();
   await page.locator(".leaflet-marker-icon[title='Dive 100']").hover();
-  const tooltip = page.locator(".map-dive-tooltip");
+  const tooltip = page.getByRole("tooltip", { name: /^Dive 100\b/ });
   for (const value of [
     "Dive 100",
     "Date",
