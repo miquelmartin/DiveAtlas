@@ -108,7 +108,13 @@ it("builds monthly counts across the full selected date range", () => {
 
 it("creates bounded histogram bins and retains the maximum value", () => {
   expect(histogramBins([], 5)).toEqual([]);
-  expect(histogramBins([7, 7], 5)).toEqual([{ start: 7, end: 7, count: 2 }]);
+  const equalBins = histogramBins([7, 7], 5);
+  expect(equalBins).toHaveLength(5);
+  expect(equalBins.reduce((total, bin) => total + bin.count, 0)).toBe(2);
+  const zeroBins = histogramBins([0, 0], 10, { lowerBound: 0 });
+  expect(zeroBins).toHaveLength(10);
+  expect(zeroBins[0].start).toBe(0);
+  expect(zeroBins.every((bin) => bin.start >= 0)).toBe(true);
   const bins = histogramBins([0, 5, 10, 15, 20], 4);
   expect(bins).toHaveLength(4);
   expect(bins.map((bin) => bin.count)).toEqual([1, 1, 1, 2]);

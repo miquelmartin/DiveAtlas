@@ -127,8 +127,51 @@ test("coincident dive clusters spiderfy for individual selection", async ({ page
   await expect(coincidentCluster).toBeVisible();
   await coincidentCluster.click();
   await expect(page.locator(".leaflet-marker-icon.dive-map-marker")).toHaveCount(10);
+  await expect(page.locator(".dive-spider-leg")).toHaveCount(10);
+  const spiderLegStyles = await page.locator(".dive-spider-leg").evaluateAll((legs) => {
+    const colorProbe = document.createElement("span");
+    colorProbe.style.color = "var(--cp-warning)";
+    document.body.append(colorProbe);
+    const warning = getComputedStyle(colorProbe).color;
+    colorProbe.remove();
+    return legs.map((leg) => ({
+      stroke: getComputedStyle(leg).stroke,
+      warning,
+      opacity: getComputedStyle(leg).strokeOpacity,
+      width: getComputedStyle(leg).strokeWidth,
+    }));
+  });
+  expect(spiderLegStyles).toEqual(
+    Array.from({ length: 10 }, () => ({
+      stroke: spiderLegStyles[0].warning,
+      warning: spiderLegStyles[0].warning,
+      opacity: "1",
+      width: "3px",
+    })),
+  );
   await expect(page.locator(".leaflet-marker-icon[title='Dive 100']")).toBeVisible();
+  await page.locator(".leaflet-marker-icon[title='Dive 100']").hover();
+  const tooltip = page.locator(".map-dive-tooltip");
+  for (const value of [
+    "Dive 100",
+    "Date",
+    "2025-06-01",
+    "Location",
+    "Example Island, Test Region",
+    "Site",
+    "Blue Wall",
+    "Maximum depth",
+    "24.2 m",
+    "Duration",
+    "3 min",
+  ]) {
+    await expect(tooltip).toContainText(value);
+  }
   await page.locator(".leaflet-marker-icon[title='Dive 100']").click();
+  const popup = page.locator(".map-dive-popup");
+  for (const value of ["Dive 100", "2025-06-01", "Example Island, Test Region", "Blue Wall", "24.2 m", "3 min"]) {
+    await expect(popup).toContainText(value);
+  }
   await expect(page.getByRole("button", { name: /Dive 100,/ })).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -248,24 +291,46 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     "aria-label",
     "3 decompression, 0 no-decompression, and 0 unknown dives",
   );
+  await expect(page.getByRole("heading", { name: "Decompression Dives" })).toBeVisible();
+  await expect(page.locator(".donut-legend")).not.toContainText("Unknown");
+  await expect(page.locator(".donut-segment title")).toContainText([
+    "3 decompression dives",
+  ]);
   await expect(page.locator(".distribution-chart")).toHaveCount(5);
+  await expect(page.locator(".distribution-bar")).toHaveCount(50);
   await expect(page.getByRole("heading", { name: "Maximum GF99" })).toBeVisible();
   const statisticsLayout = await page.locator("#selection-stats").evaluate((container) => {
     const background = getComputedStyle(container).backgroundColor;
+    const profileBackground = getComputedStyle(
+      document.querySelector("#profile-chart > svg"),
+    ).backgroundColor;
     const distribution = container.querySelector(".distribution-chart");
     const monthly = container.querySelector(".monthly-histogram").getBoundingClientRect();
     const diveTypes = container.querySelector(".dive-type-summary").getBoundingClientRect();
     const legend = container.querySelector(".donut-legend");
     return {
       background,
+      profileBackground,
       distributionBackground: getComputedStyle(distribution).backgroundColor,
       diveTypesWiderThanMonthly: diveTypes.width > monthly.width,
       legendFits: legend.scrollWidth <= legend.clientWidth,
     };
   });
   expect(statisticsLayout.distributionBackground).toBe(statisticsLayout.background);
+  expect(statisticsLayout.profileBackground).toBe(statisticsLayout.background);
   expect(statisticsLayout.diveTypesWiderThanMonthly).toBe(true);
   expect(statisticsLayout.legendFits).toBe(true);
+  const donutColors = await page.locator(".donut-key").evaluateAll((keys) =>
+    keys.map((key) => ({
+      legend: getComputedStyle(key).backgroundColor,
+      segment: getComputedStyle(
+        document.querySelector(`.donut-segment.${[...key.classList].find((name) =>
+          name.startsWith("donut-") && name !== "donut-key",
+        )}`),
+      ).stroke,
+    })),
+  );
+  expect(donutColors.every(({ legend, segment }) => legend === segment)).toBe(true);
   await expect(page.locator(".profile-legend")).toHaveCount(0);
   await selectionActions.getByRole("button", { name: "None" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(0);

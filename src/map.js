@@ -30,6 +30,23 @@ function clusterIcon(cluster) {
   });
 }
 
+function markerDetails(dive, mapping) {
+  const date = dive.dateTime?.slice(0, 10) || "Unknown date";
+  const depth = Number.isFinite(dive.maxDepth) ? `${dive.maxDepth.toFixed(1)} m` : "Unknown";
+  const duration = Number.isFinite(dive.durationSeconds)
+    ? `${Math.round(dive.durationSeconds / 60)} min`
+    : "Unknown";
+  return `
+    <strong>Dive ${escapeHtml(dive.number ?? "—")}</strong>
+    <dl class="map-dive-summary">
+      <div><dt>Date</dt><dd>${escapeHtml(date)}</dd></div>
+      <div><dt>Location</dt><dd>${escapeHtml(mapping.location)}</dd></div>
+      <div><dt>Site</dt><dd>${escapeHtml(mapping.site)}</dd></div>
+      <div><dt>Maximum depth</dt><dd>${escapeHtml(depth)}</dd></div>
+      <div><dt>Duration</dt><dd>${escapeHtml(duration)}</dd></div>
+    </dl>`;
+}
+
 export function initializeMap(element, callbacks = {}) {
   if (!globalThis.L) {
     element.textContent = "Map library unavailable. Dive data remains available in the list.";
@@ -57,6 +74,11 @@ export function initializeMap(element, callbacks = {}) {
           showCoverageOnHover: false,
           maxClusterRadius: 28,
           spiderfyDistanceMultiplier: 1.4,
+          spiderLegPolylineOptions: {
+            className: "dive-spider-leg",
+            opacity: 1,
+            weight: 3,
+          },
           spiderfyOnMaxZoom: false,
           zoomToBoundsOnClick: false,
           iconCreateFunction: clusterIcon,
@@ -102,12 +124,14 @@ export function renderMap(diveGroups, { fit = false, selectedDiveIds = new Set()
         diveSelected: selected,
         diveLabel: dive.number ?? "unknown",
         title: `Dive ${dive.number ?? "unknown"}${selected ? ", selected" : ""}`,
-      }).bindPopup(
-        `<strong>Dive ${escapeHtml(dive.number ?? "—")}</strong><br>${escapeHtml(
-          mapping.site,
-        )}<br>${escapeHtml(mapping.location)}`,
-        { autoPan: false },
-      );
+      });
+      const details = markerDetails(dive, mapping);
+      marker.bindTooltip(details, {
+        className: "map-dive-tooltip",
+        direction: "top",
+        offset: [0, -8],
+      });
+      marker.bindPopup(details, { autoPan: false, className: "map-dive-popup" });
       marker.on("click", () => onMarkerSelect([dive.id]));
       marker.on("add", () => {
         marker.getElement()?.setAttribute("aria-pressed", String(marker.options.diveSelected));

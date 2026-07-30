@@ -758,6 +758,47 @@ tbody tr:hover {
   box-shadow: 0 0 0 3px var(--cp-warning), 0 1px 5px rgba(0, 35, 50, 0.7);
 }
 
+.leaflet-overlay-pane .dive-spider-leg {
+  stroke: var(--cp-warning);
+  stroke-opacity: 1;
+  stroke-width: 3;
+}
+
+.map-dive-tooltip,
+.map-dive-popup .leaflet-popup-content-wrapper,
+.map-dive-popup .leaflet-popup-tip {
+  background: var(--cp-panel-strong);
+  color: var(--cp-text);
+}
+
+.map-dive-tooltip {
+  border-color: var(--cp-border-strong);
+  box-shadow: var(--cp-shadow);
+}
+
+.map-dive-summary {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 12rem;
+  margin: 0.35rem 0 0;
+}
+
+.map-dive-summary div {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: 0.35rem;
+}
+
+.map-dive-summary dt {
+  color: var(--cp-text-muted);
+}
+
+.map-dive-summary dd {
+  margin: 0;
+  color: var(--cp-text);
+  font-weight: 600;
+}
+
 .dive-map-marker span {
   display: block;
   width: 100%;
@@ -874,7 +915,7 @@ tbody tr:hover {
   height: 100%;
   min-height: 13rem;
   border: 1px solid var(--cp-border);
-  background: var(--cp-surface-soft);
+  background: var(--cp-surface);
 }
 
 .profile-area {
@@ -1025,6 +1066,11 @@ tbody tr:hover {
   stroke-linecap: butt;
 }
 
+.donut-segment:focus {
+  outline: none;
+  stroke-width: 16;
+}
+
 .donut-decompression {
   stroke: var(--cp-danger);
 }
@@ -1073,6 +1119,18 @@ tbody tr:hover {
   height: 0.55rem;
   border-radius: 50%;
   background: currentColor;
+}
+
+.donut-key.donut-decompression {
+  background: var(--cp-danger);
+}
+
+.donut-key.donut-no-decompression {
+  background: var(--cp-accent);
+}
+
+.donut-key.donut-unknown {
+  background: var(--cp-border-strong);
 }
 
 .selection-distributions {
