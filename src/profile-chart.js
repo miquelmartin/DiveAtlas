@@ -119,19 +119,18 @@ export function renderProfileChart(container, samples) {
       }),
     );
   });
-  const cursor = svgElement("line", {
-    x1: padding,
-    x2: padding,
-    y1: padding,
-    y2: plotBottom,
-    class: "profile-cursor",
+  const hoverPoint = svgElement("circle", {
+    cx: padding,
+    cy: padding,
+    r: 4,
+    class: "profile-hover-point",
     hidden: "true",
   });
   const tooltip = document.createElement("output");
   tooltip.className = "chart-tooltip";
   tooltip.setAttribute("aria-live", "polite");
   tooltip.hidden = true;
-  svg.append(cursor);
+  svg.append(hoverPoint);
   container.append(svg, tooltip);
   if (unavailableCount) {
     const unavailable = document.createElement("p");
@@ -145,29 +144,51 @@ export function renderProfileChart(container, samples) {
   svg.addEventListener("pointermove", (event) => {
     const bounds = svg.getBoundingClientRect();
     const svgX = ((event.clientX - bounds.left) / bounds.width) * width;
+    const svgY = ((event.clientY - bounds.top) / bounds.height) * height;
     const ratio = Math.max(0, Math.min(1, (svgX - padding) / (plotRight - padding)));
     const targetTime = ratio * maxTime;
-    const nearest = series.map((item) => ({
-      label: item.label,
-      sample: item.samples.reduce((best, current) =>
-        Math.abs(current.time - targetTime) < Math.abs(best.time - targetTime) ? current : best,
-      ),
-    }));
-    const x = padding + ratio * (width - padding * 2);
-    cursor.setAttribute("x1", x);
-    cursor.setAttribute("x2", x);
-    cursor.removeAttribute("hidden");
-    tooltip.replaceChildren(
-      ...nearest.map(({ label, sample }, index) => {
-        const item = document.createElement("span");
-        const dive = series[index];
-        const number = dive.number ?? label.replace(/^Dive\s+/, "").split(" · ")[0];
-        item.textContent = `Dive ${number} · ${dive.location ?? "Unknown location"} · ${
-          dive.site ?? "Unknown site"
-        } · ${sample.depth.toFixed(1)} m · ${(sample.time / 60).toFixed(1)} min`;
-        return item;
-      }),
-    );
+    const nearest = series.reduce((best, dive) => {
+      const samplesByTime = dive.samples;
+      let low = 0;
+      let high = samplesByTime.length;
+      while (low < high) {
+        const middle = Math.floor((low + high) / 2);
+        if (samplesByTime[middle].time < targetTime) low = middle + 1;
+        else high = middle;
+      }
+      const consider = (index) => {
+        const sample = samplesByTime[index];
+        const x = padding + (sample.time / maxTime) * (width - padding * 2);
+        const y = padding + (sample.depth / maxDepth) * (height - padding * 2);
+        const distance = (x - svgX) ** 2 + (y - svgY) ** 2;
+        if (!best || distance < best.distance) {
+          best = { dive, sample, x, y, distance };
+        }
+        return (x - svgX) ** 2;
+      };
+      for (let index = low; index < samplesByTime.length; index += 1) {
+        const horizontalDistance = consider(index);
+        if (best && horizontalDistance > best.distance) break;
+      }
+      for (let index = low - 1; index >= 0; index -= 1) {
+        const horizontalDistance = consider(index);
+        if (best && horizontalDistance > best.distance) break;
+      }
+      return best;
+    }, null);
+    hoverPoint.setAttribute("cx", nearest.x);
+    hoverPoint.setAttribute("cy", nearest.y);
+    hoverPoint.removeAttribute("hidden");
+    const item = document.createElement("span");
+    const number =
+      nearest.dive.number ??
+      nearest.dive.label.replace(/^Dive\s+/, "").split(" · ")[0];
+    item.textContent = `Dive ${number} · ${
+      nearest.dive.location ?? "Unknown location"
+    } · ${nearest.dive.site ?? "Unknown site"} · ${nearest.sample.depth.toFixed(
+      1,
+    )} m · ${(nearest.sample.time / 60).toFixed(1)} min`;
+    tooltip.replaceChildren(item);
     const containerBounds = container.getBoundingClientRect();
     tooltip.hidden = false;
     const tooltipWidth = tooltip.offsetWidth;
@@ -182,7 +203,7 @@ export function renderProfileChart(container, samples) {
     )}px`;
   });
   svg.addEventListener("pointerleave", () => {
-    cursor.setAttribute("hidden", "true");
+    hoverPoint.setAttribute("hidden", "true");
     tooltip.hidden = true;
   });
 }

@@ -39,9 +39,30 @@ describe("selected dive statistics", () => {
         from: "2025-01-01",
         to: "2025-02-28",
         libraryDives: [
-          { maxDepth: 30, durationSeconds: 3600, maxCns: 12, maxGf99: 70 },
-          { maxDepth: 20, durationSeconds: 2400, maxCns: 5, maxGf99: 55 },
-          { maxDepth: 50, durationSeconds: 7200, maxCns: 130, maxGf99: 110 },
+          {
+            dateTime: "2025-01-02T10:00:00Z",
+            maxDepth: 30,
+            durationSeconds: 3600,
+            minTemperature: 18,
+            maxCns: 12,
+            maxGf99: 70,
+          },
+          {
+            dateTime: "2025-02-03T10:00:00Z",
+            maxDepth: 20,
+            durationSeconds: 2400,
+            minTemperature: 20,
+            maxCns: 5,
+            maxGf99: 55,
+          },
+          {
+            dateTime: "2025-03-15T10:00:00Z",
+            maxDepth: 50,
+            durationSeconds: 7200,
+            minTemperature: 12,
+            maxCns: 130,
+            maxGf99: 110,
+          },
         ],
       },
     );
@@ -70,7 +91,11 @@ describe("selected dive statistics", () => {
       { tabindex: "0", label: "1 no-decompression dive" },
       { tabindex: "0", label: "1 unknown dive" },
     ]);
-    expect(container.querySelectorAll(".monthly-bar")).toHaveLength(2);
+    expect(container.querySelectorAll(".histogram-chart")).toHaveLength(6);
+    expect(container.querySelectorAll(".monthly-histogram .histogram-bar-all")).toHaveLength(3);
+    expect(container.querySelectorAll(".monthly-histogram .histogram-bar-selected")).toHaveLength(
+      3,
+    );
     expect([...container.querySelectorAll(".distribution-chart h3")].map((item) => item.textContent))
       .toEqual([
         "Maximum depth",
@@ -80,10 +105,22 @@ describe("selected dive statistics", () => {
         "Maximum GF99",
       ]);
     expect(container.querySelectorAll(".selection-grid > section")).toHaveLength(7);
-    expect(container.querySelectorAll(".distribution-bar")).toHaveLength(100);
+    expect(container.querySelectorAll(".distribution-chart .histogram-bar-all")).toHaveLength(100);
+    expect(container.querySelectorAll(".distribution-chart .histogram-bar-selected")).toHaveLength(
+      100,
+    );
+    expect(container.querySelectorAll(".histogram-hit-area")).toHaveLength(103);
+    expect(container.querySelector(".monthly-histogram svg").getAttribute("aria-label")).toContain(
+      "from 2025-01 to 2025-03",
+    );
+    expect(container.querySelector(".histogram-legend").textContent).toBe(
+      "All divesSelected dives",
+    );
     expect(
       container.querySelector(".distribution-chart svg").getAttribute("aria-label"),
-    ).toBe("Maximum depth distribution: 2 of 3 selected dives have data");
+    ).toBe(
+      "Maximum depth distribution: 3 of 3 library dives and 2 of 3 selected dives have data",
+    );
     const axisRange = (title) => {
       const chart = [...container.querySelectorAll(".distribution-chart")].find(
         (item) => item.querySelector("h3").textContent === title,
@@ -94,6 +131,16 @@ describe("selected dive statistics", () => {
     expect(axisRange("Duration")).toEqual(["0.0 min", "120.0 min"]);
     expect(axisRange("Maximum CNS")).toEqual(["0.0 %", "130.0 %"]);
     expect(axisRange("Maximum GF99")).toEqual(["0.0 %", "110.0 %"]);
+    const firstDepthBin = container.querySelector(
+      ".distribution-chart .histogram-hit-area",
+    );
+    firstDepthBin.dispatchEvent(new PointerEvent("pointerenter"));
+    const tooltip = container.querySelector(".distribution-chart .histogram-tooltip");
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.textContent).toContain("All dives:");
+    expect(tooltip.textContent).toContain("Selected dives:");
+    firstDepthBin.dispatchEvent(new PointerEvent("pointerleave"));
+    expect(tooltip.hidden).toBe(true);
   });
 
   it("shows empty states for selected dives without profile summaries", () => {

@@ -8,50 +8,88 @@ function svgElement(name, attributes = {}) {
   return element;
 }
 
-function renderMonthlyHistogram(dives, from, to) {
-  const section = document.createElement("section");
-  section.className = "monthly-histogram";
-  const heading = document.createElement("h3");
-  heading.textContent = "Dives per month";
-  const months = monthlyDiveCounts(dives, from, to);
+function histogramTooltipText(label, allCount, selectedCount) {
+  return `${label} · All dives: ${allCount} · Selected dives: ${selectedCount}`;
+}
+
+function renderLayeredHistogram({
+  allBins,
+  selectedBins,
+  ariaLabel,
+  tooltipLabel,
+  axisLabels,
+}) {
   const svg = svgElement("svg", {
-    viewBox: "0 0 480 120",
+    viewBox: "0 0 480 110",
     role: "img",
-    "aria-label": `Monthly histogram for ${dives.length} selected dive${
-      dives.length === 1 ? "" : "s"
-    } from ${from || "first dive"} to ${to || "last dive"}`,
+    "aria-label": ariaLabel,
   });
-  const maxCount = months.reduce((maximum, item) => Math.max(maximum, item.count), 1);
-  const plotLeft = 28;
-  const plotRight = 472;
-  const plotTop = 8;
-  const plotBottom = 88;
-  const slotWidth = (plotRight - plotLeft) / Math.max(1, months.length);
-  const labelStep = Math.max(1, Math.ceil(months.length / 6));
-  months.forEach((item, index) => {
-    const height = (item.count / maxCount) * (plotBottom - plotTop);
-    const bar = svgElement("rect", {
-      x: plotLeft + index * slotWidth + Math.min(1.5, slotWidth * 0.1),
-      y: plotBottom - height,
-      width: Math.max(1, slotWidth - Math.min(3, slotWidth * 0.2)),
-      height,
-      class: "monthly-bar",
+  const tooltip = document.createElement("output");
+  tooltip.className = "histogram-tooltip";
+  tooltip.hidden = true;
+  const plotLeft = 2;
+  const plotRight = 478;
+  const plotTop = 6;
+  const plotBottom = 80;
+  const slotWidth = (plotRight - plotLeft) / allBins.length;
+  const maxCount = Math.max(
+    1,
+    ...allBins.map((bin) => bin.count),
+    ...selectedBins.map((bin) => bin.count),
+  );
+
+  allBins.forEach((bin, index) => {
+    const selectedBin = selectedBins[index];
+    const allHeight = (bin.count / maxCount) * (plotBottom - plotTop);
+    const selectedHeight = (selectedBin.count / maxCount) * (plotBottom - plotTop);
+    const outerGap = Math.min(1, slotWidth * 0.04);
+    const allBarWidth = Math.max(1, slotWidth - outerGap * 2);
+    const selectedBarWidth = Math.max(1, allBarWidth * 0.56);
+    const x = plotLeft + index * slotWidth;
+    const allBar = svgElement("rect", {
+      x: x + outerGap,
+      y: plotBottom - allHeight,
+      width: allBarWidth,
+      height: allHeight,
+      class: "histogram-bar histogram-bar-all",
+    });
+    const selectedBar = svgElement("rect", {
+      x: x + (slotWidth - selectedBarWidth) / 2,
+      y: plotBottom - selectedHeight,
+      width: selectedBarWidth,
+      height: selectedHeight,
+      class: "histogram-bar histogram-bar-selected",
+    });
+    const label = tooltipLabel(bin, index);
+    const tooltipText = histogramTooltipText(label, bin.count, selectedBin.count);
+    const hitArea = svgElement("rect", {
+      x,
+      y: plotTop,
+      width: slotWidth,
+      height: plotBottom - plotTop,
+      class: "histogram-hit-area",
+      tabindex: "0",
+      role: "img",
+      "aria-label": tooltipText,
     });
     const title = svgElement("title");
-    title.textContent = `${item.month}: ${item.count} dive${item.count === 1 ? "" : "s"}`;
-    bar.append(title);
-    svg.append(bar);
-    if (index % labelStep === 0 || index === months.length - 1) {
-      const label = svgElement("text", {
-        x: plotLeft + (index + 0.5) * slotWidth,
-        y: 106,
-        "text-anchor": "middle",
-        class: "selection-axis-label",
-      });
-      label.textContent = item.month;
-      svg.append(label);
-    }
+    title.textContent = tooltipText;
+    hitArea.append(title);
+    const showTooltip = () => {
+      tooltip.textContent = tooltipText;
+      tooltip.style.left = `${Math.max(10, Math.min(90, ((index + 0.5) / allBins.length) * 100))}%`;
+      tooltip.hidden = false;
+    };
+    const hideTooltip = () => {
+      tooltip.hidden = true;
+    };
+    hitArea.addEventListener("pointerenter", showTooltip);
+    hitArea.addEventListener("pointerleave", hideTooltip);
+    hitArea.addEventListener("focus", showTooltip);
+    hitArea.addEventListener("blur", hideTooltip);
+    svg.append(allBar, selectedBar, hitArea);
   });
+
   svg.append(
     svgElement("line", {
       x1: plotLeft,
@@ -61,7 +99,44 @@ function renderMonthlyHistogram(dives, from, to) {
       class: "selection-axis",
     }),
   );
-  section.append(heading, svg);
+  axisLabels.forEach(({ position, text, anchor = "middle" }) => {
+    const label = svgElement("text", {
+      x: plotLeft + position * (plotRight - plotLeft),
+      y: 100,
+      "text-anchor": anchor,
+      class: "selection-axis-label",
+    });
+    label.textContent = text;
+    svg.append(label);
+  });
+  return { svg, tooltip };
+}
+
+function renderMonthlyHistogram(dives, libraryDives) {
+  const section = document.createElement("section");
+  section.className = "monthly-histogram histogram-chart";
+  const heading = document.createElement("h3");
+  heading.textContent = "Dives per month";
+  const allMonths = monthlyDiveCounts(libraryDives, "", "");
+  const effectiveFrom = allMonths[0]?.month || "";
+  const effectiveTo = allMonths.at(-1)?.month || "";
+  const selectedMonths = monthlyDiveCounts(dives, effectiveFrom, effectiveTo);
+  const labelStep = Math.max(1, Math.ceil(allMonths.length / 6));
+  const axisLabels = allMonths
+    .map((item, index) => ({ item, index }))
+    .filter(({ index }) => index % labelStep === 0 || index === allMonths.length - 1)
+    .map(({ item, index }) => ({
+      position: (index + 0.5) / allMonths.length,
+      text: item.month,
+    }));
+  const { svg, tooltip } = renderLayeredHistogram({
+    allBins: allMonths,
+    selectedBins: selectedMonths,
+    ariaLabel: `Monthly histogram for ${libraryDives.length} library dives and ${dives.length} selected dives from ${effectiveFrom || "first dive"} to ${effectiveTo || "last dive"}`,
+    tooltipLabel: (bin) => bin.month,
+    axisLabels,
+  });
+  section.append(heading, svg, tooltip);
   return section;
 }
 
@@ -160,85 +235,54 @@ function renderDiveTypeDonut(dives) {
 function renderDistribution({
   title,
   unit,
-  values,
+  selectedValues,
+  allValues,
   selectedDiveCount,
+  libraryDiveCount,
   lowerBound,
   upperBound,
 }) {
   const section = document.createElement("section");
-  section.className = "distribution-chart";
+  section.className = "distribution-chart histogram-chart";
   const heading = document.createElement("h3");
   heading.textContent = title;
-  const bins = histogramBins(values, 20, { lowerBound, upperBound });
-  if (!bins.length) {
+  const allBins = histogramBins(allValues, 20, { lowerBound, upperBound });
+  if (!allBins.length) {
     const empty = document.createElement("p");
     empty.textContent = "No data";
     section.append(heading, empty);
     return section;
   }
-
-  const svg = svgElement("svg", {
-    viewBox: "0 0 240 105",
-    role: "img",
-    "aria-label": `${title} distribution: ${values.length} of ${selectedDiveCount} selected dives have data`,
+  const domain = {
+    lowerBound: allBins[0].start,
+    upperBound: allBins.at(-1).end,
+  };
+  const selectedHistogram = histogramBins(selectedValues, 20, domain);
+  const selectedBins = selectedHistogram.length
+    ? selectedHistogram
+    : allBins.map((bin) => ({ ...bin, count: 0 }));
+  const formatRange = (bin) =>
+    bin.start === bin.end
+      ? `${bin.start.toFixed(1)} ${unit}`
+      : `${bin.start.toFixed(1)}–${bin.end.toFixed(1)} ${unit}`;
+  const { svg, tooltip } = renderLayeredHistogram({
+    allBins,
+    selectedBins,
+    ariaLabel: `${title} distribution: ${allValues.length} of ${libraryDiveCount} library dives and ${selectedValues.length} of ${selectedDiveCount} selected dives have data`,
+    tooltipLabel: formatRange,
+    axisLabels: [
+      { position: 0, text: `${allBins[0].start.toFixed(1)} ${unit}`, anchor: "start" },
+      { position: 1, text: `${allBins.at(-1).end.toFixed(1)} ${unit}`, anchor: "end" },
+    ],
   });
-  const plotLeft = 5;
-  const plotRight = 238;
-  const plotTop = 7;
-  const plotBottom = 75;
-  const slotWidth = (plotRight - plotLeft) / bins.length;
-  const maxCount = bins.reduce((maximum, bin) => Math.max(maximum, bin.count), 1);
-  bins.forEach((bin, index) => {
-    const height = (bin.count / maxCount) * (plotBottom - plotTop);
-    const gap = Math.min(0.75, slotWidth * 0.06);
-    const bar = svgElement("rect", {
-      x: plotLeft + index * slotWidth + gap,
-      y: plotBottom - height,
-      width: Math.max(1, slotWidth - gap * 2),
-      height,
-      class: "distribution-bar",
-    });
-    const range =
-      bin.start === bin.end
-        ? `${bin.start.toFixed(1)} ${unit}`
-        : `${bin.start.toFixed(1)}–${bin.end.toFixed(1)} ${unit}`;
-    const tooltip = svgElement("title");
-    tooltip.textContent = `${range}: ${bin.count} dive${bin.count === 1 ? "" : "s"}`;
-    bar.append(tooltip);
-    svg.append(bar);
-  });
-  svg.append(
-    svgElement("line", {
-      x1: plotLeft,
-      x2: plotRight,
-      y1: plotBottom,
-      y2: plotBottom,
-      class: "selection-axis",
-    }),
-  );
-  const minimum = svgElement("text", {
-    x: plotLeft,
-    y: 94,
-    "text-anchor": "start",
-    class: "selection-axis-label",
-  });
-  minimum.textContent = `${bins[0].start.toFixed(1)} ${unit}`;
-  const maximum = svgElement("text", {
-    x: plotRight,
-    y: 94,
-    "text-anchor": "end",
-    class: "selection-axis-label",
-  });
-  maximum.textContent = `${bins.at(-1).end.toFixed(1)} ${unit}`;
-  svg.append(minimum, maximum);
-  section.append(heading, svg);
+  section.append(heading, svg, tooltip);
   return section;
 }
 
 export function renderSelectionStatistics(
   container,
   dives,
-  { from = "", to = "", libraryDives = dives } = {},
+  { libraryDives = dives } = {},
 ) {
   container.replaceChildren();
   if (!dives.length) {
@@ -257,51 +301,75 @@ export function renderSelectionStatistics(
   const durationMaximum = maximum("durationSeconds", 0, (value) => value / 60);
   const cnsMaximum = maximum("maxCns", 100);
   const gf99Maximum = maximum("maxGf99", 100);
+  const values = (divesToRead, key, transform = (value) => value) =>
+    divesToRead.map((dive) => transform(dive[key])).filter(Number.isFinite);
+  const legend = document.createElement("div");
+  legend.className = "histogram-legend";
+  [
+    ["histogram-key-all", "All dives"],
+    ["histogram-key-selected", "Selected dives"],
+  ].forEach(([className, label]) => {
+    const item = document.createElement("span");
+    const swatch = document.createElement("span");
+    swatch.className = `histogram-key ${className}`;
+    item.append(swatch, document.createTextNode(label));
+    legend.append(item);
+  });
   const charts = document.createElement("div");
   charts.className = "selection-grid";
-  charts.append(renderMonthlyHistogram(dives, from, to), renderDiveTypeDonut(dives));
+  charts.append(
+    renderMonthlyHistogram(dives, libraryDives),
+    renderDiveTypeDonut(dives),
+  );
   [
     {
       title: "Maximum depth",
       unit: "m",
-      values: dives.map((dive) => dive.maxDepth).filter(Number.isFinite),
+      selectedValues: values(dives, "maxDepth"),
+      allValues: values(libraryDives, "maxDepth"),
       selectedDiveCount: dives.length,
+      libraryDiveCount: libraryDives.length,
       lowerBound: 0,
       upperBound: depthMaximum,
     },
     {
       title: "Duration",
       unit: "min",
-      values: dives
-        .map((dive) => dive.durationSeconds)
-        .filter(Number.isFinite)
-        .map((duration) => duration / 60),
+      selectedValues: values(dives, "durationSeconds", (duration) => duration / 60),
+      allValues: values(libraryDives, "durationSeconds", (duration) => duration / 60),
       selectedDiveCount: dives.length,
+      libraryDiveCount: libraryDives.length,
       lowerBound: 0,
       upperBound: durationMaximum,
     },
     {
       title: "Minimum temperature",
       unit: "°C",
-      values: dives.map((dive) => dive.minTemperature).filter(Number.isFinite),
+      selectedValues: values(dives, "minTemperature"),
+      allValues: values(libraryDives, "minTemperature"),
       selectedDiveCount: dives.length,
+      libraryDiveCount: libraryDives.length,
     },
     {
       title: "Maximum CNS",
       unit: "%",
-      values: dives.map((dive) => dive.maxCns).filter(Number.isFinite),
+      selectedValues: values(dives, "maxCns"),
+      allValues: values(libraryDives, "maxCns"),
       selectedDiveCount: dives.length,
+      libraryDiveCount: libraryDives.length,
       lowerBound: 0,
       upperBound: cnsMaximum,
     },
     {
       title: "Maximum GF99",
       unit: "%",
-      values: dives.map((dive) => dive.maxGf99).filter(Number.isFinite),
+      selectedValues: values(dives, "maxGf99"),
+      allValues: values(libraryDives, "maxGf99"),
       selectedDiveCount: dives.length,
+      libraryDiveCount: libraryDives.length,
       lowerBound: 0,
       upperBound: gf99Maximum,
     },
   ].forEach((definition) => charts.append(renderDistribution(definition)));
-  container.append(charts);
+  container.append(legend, charts);
 }

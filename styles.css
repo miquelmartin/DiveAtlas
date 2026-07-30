@@ -791,9 +791,12 @@ tbody tr:hover {
 }
 
 .map-dive-tooltip {
+  max-width: min(18rem, calc(100vw - 2rem));
   background: var(--cp-panel-strong);
   color: var(--cp-text);
   border-color: var(--cp-border-strong);
+  white-space: normal;
+  overflow-wrap: anywhere;
   box-shadow: var(--cp-shadow);
 }
 
@@ -815,7 +818,7 @@ tbody tr:hover {
 .map-dive-summary {
   display: grid;
   gap: 0.15rem;
-  min-width: 12rem;
+  min-width: min(12rem, calc(100vw - 4rem));
   margin: 0.35rem 0 0;
 }
 
@@ -833,6 +836,7 @@ tbody tr:hover {
   margin: 0;
   color: var(--cp-text);
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .dive-map-marker span {
@@ -980,8 +984,6 @@ tbody tr:hover {
   width: 100%;
   height: 100%;
   min-height: 0;
-  border: 1px solid var(--cp-border);
-  background: var(--cp-surface);
 }
 
 .profile-area {
@@ -991,7 +993,7 @@ tbody tr:hover {
 .profile-line {
   fill: none;
   stroke: var(--cp-accent);
-  stroke-width: 2;
+  stroke-width: 1.25;
 }
 
 .profile-series-0 {
@@ -1020,9 +1022,10 @@ tbody tr:hover {
   font-size: 10px;
 }
 
-.profile-cursor {
-  stroke: var(--cp-border-strong);
-  stroke-dasharray: 4 4;
+.profile-hover-point {
+  fill: var(--cp-panel-strong);
+  stroke: var(--cp-selection);
+  stroke-width: 2;
 }
 
 .chart-tooltip {
@@ -1038,6 +1041,8 @@ tbody tr:hover {
   color: var(--cp-text);
   font-size: 0.72rem;
   text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
   pointer-events: none;
   box-shadow: var(--cp-shadow);
 }
@@ -1058,8 +1063,6 @@ tbody tr:hover {
   grid-area: stats;
   min-height: 17rem;
   padding: 0.4rem 0.55rem;
-  border-top: 1px solid var(--cp-border);
-  background: var(--cp-surface);
 }
 
 .selection-stats > p {
@@ -1087,18 +1090,83 @@ tbody tr:hover {
 .distribution-chart {
   min-width: 0;
   padding: 0.25rem;
-  border: 1px solid var(--cp-border);
-  background: var(--cp-surface);
 }
 
-.monthly-histogram svg {
+.histogram-chart {
+  position: relative;
+}
+
+.histogram-chart svg {
   display: block;
   width: 100%;
   height: 5.5rem;
 }
 
-.monthly-bar {
+.histogram-bar-all {
   fill: var(--cp-accent);
+}
+
+.histogram-bar-selected {
+  fill: var(--cp-selection);
+}
+
+.histogram-hit-area {
+  fill: transparent;
+  cursor: help;
+}
+
+.histogram-hit-area:focus {
+  outline: none;
+  fill: var(--cp-highlight);
+}
+
+.histogram-tooltip {
+  position: absolute;
+  z-index: 2;
+  top: 1.25rem;
+  width: max-content;
+  max-width: calc(100% - 0.5rem);
+  padding: 0.25rem 0.4rem;
+  transform: translateX(-50%);
+  border: 1px solid var(--cp-border-strong);
+  background: var(--cp-panel-strong);
+  color: var(--cp-text);
+  font-size: 0.62rem;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  box-shadow: var(--cp-shadow);
+}
+
+.histogram-legend {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-bottom: 0.3rem;
+  color: var(--cp-text-muted);
+  font-size: 0.62rem;
+}
+
+.histogram-legend > span {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.histogram-key {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 0.1rem;
+}
+
+.histogram-key-all {
+  background: var(--cp-accent);
+}
+
+.histogram-key-selected {
+  background: var(--cp-selection);
 }
 
 .selection-axis {
@@ -1210,21 +1278,11 @@ tbody tr:hover {
   min-width: 0;
 }
 
-.distribution-chart svg {
-  display: block;
-  width: 100%;
-  height: 5.5rem;
-}
-
 .distribution-chart > p {
   margin: 1.7rem 0;
   color: var(--cp-text-muted);
   font-size: 0.65rem;
   text-align: center;
-}
-
-.distribution-bar {
-  fill: var(--cp-accent);
 }
 
 .dive-detail {

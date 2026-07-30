@@ -175,9 +175,13 @@ test("coincident dive clusters spiderfy for individual selection", async ({ page
     background: getComputedStyle(element).backgroundColor,
     pointer: getComputedStyle(element, "::before").borderTopColor,
     seamCover: getComputedStyle(element, "::after").backgroundColor,
+    wraps: getComputedStyle(element).whiteSpace === "normal",
+    contentFits: element.scrollWidth <= element.clientWidth,
   }));
   expect(tooltipPointer.pointer).toBe(tooltipPointer.background);
   expect(tooltipPointer.seamCover).toBe(tooltipPointer.background);
+  expect(tooltipPointer.wraps).toBe(true);
+  expect(tooltipPointer.contentFits).toBe(true);
   await dive100Marker.click();
   await expect(tooltip).toBeVisible();
   await expect(page.locator(".leaflet-popup")).toHaveCount(0);
@@ -325,7 +329,8 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   });
   expect(selectionColor.selected).toBe(selectionColor.expected);
   await expect(page.locator("#dive-detail")).toContainText("3 dives selected");
-  await expect(page.locator(".monthly-bar")).toHaveCount(1);
+  await expect(page.locator(".monthly-histogram .histogram-bar-all")).toHaveCount(1);
+  await expect(page.locator(".monthly-histogram .histogram-bar-selected")).toHaveCount(1);
   await expect(page.locator(".donut-total")).toHaveText("3");
   await expect(page.locator(".dive-type-summary svg")).toHaveAttribute(
     "aria-label",
@@ -337,7 +342,11 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     "3 decompression dives",
   ]);
   await expect(page.locator(".distribution-chart")).toHaveCount(5);
-  await expect(page.locator(".distribution-bar")).toHaveCount(100);
+  await expect(page.locator(".distribution-chart .histogram-bar-all")).toHaveCount(100);
+  await expect(page.locator(".distribution-chart .histogram-bar-selected")).toHaveCount(100);
+  await expect(page.locator(".histogram-chart")).toHaveCount(6);
+  await expect(page.locator(".histogram-legend")).toContainText("All dives");
+  await expect(page.locator(".histogram-legend")).toContainText("Selected dives");
   await expect(page.getByRole("heading", { name: "Maximum GF99" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Depth Profile" })).toBeVisible();
   const statisticsLayout = await page.locator("#selection-stats").evaluate((container) => {
@@ -358,11 +367,19 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
       chartCount: container.querySelectorAll(".selection-grid > section").length,
       histogramWidthRatio: (() => {
         const svg = distribution.querySelector("svg");
-        const bars = [...svg.querySelectorAll(".distribution-bar")];
+        const bars = [...svg.querySelectorAll(".histogram-bar-all")];
         const first = Number(bars[0].getAttribute("x"));
         const last = bars.at(-1);
-        return (Number(last.getAttribute("x")) + Number(last.getAttribute("width")) - first) / 240;
+        return (Number(last.getAttribute("x")) + Number(last.getAttribute("width")) - first) / 480;
       })(),
+      sharedViewBoxes: [...container.querySelectorAll(".histogram-chart svg")].every(
+        (svg) => svg.getAttribute("viewBox") === "0 0 480 110",
+      ),
+      borderlessCharts: [
+        document.querySelector("#profile-chart > svg"),
+        ...container.querySelectorAll(".selection-grid > section"),
+      ].every((element) => getComputedStyle(element).borderTopWidth === "0px"),
+      unifiedStatisticsPanel: getComputedStyle(container).borderTopWidth === "0px",
     };
   });
   expect(statisticsLayout.distributionBackground).toBe(statisticsLayout.background);
@@ -371,6 +388,45 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   expect(statisticsLayout.legendFits).toBe(true);
   expect(statisticsLayout.chartCount).toBe(7);
   expect(statisticsLayout.histogramWidthRatio).toBeGreaterThan(0.95);
+  expect(statisticsLayout.sharedViewBoxes).toBe(true);
+  expect(statisticsLayout.borderlessCharts).toBe(true);
+  expect(statisticsLayout.unifiedStatisticsPanel).toBe(true);
+  const histogramColors = await page.locator(".histogram-chart").first().evaluate((chart) => {
+    const allBar = chart.querySelector(".histogram-bar-all");
+    const selectedBar = chart.querySelector(".histogram-bar-selected");
+    const allProbe = document.createElement("span");
+    const selectedProbe = document.createElement("span");
+    allProbe.style.color = "var(--cp-accent)";
+    selectedProbe.style.color = "var(--cp-selection)";
+    document.body.append(allProbe, selectedProbe);
+    const colors = {
+      all: getComputedStyle(allBar).fill,
+      expectedAll: getComputedStyle(allProbe).color,
+      selected: getComputedStyle(selectedBar).fill,
+      expectedSelected: getComputedStyle(selectedProbe).color,
+    };
+    allProbe.remove();
+    selectedProbe.remove();
+    return colors;
+  });
+  expect(histogramColors.all).toBe(histogramColors.expectedAll);
+  expect(histogramColors.selected).toBe(histogramColors.expectedSelected);
+  const firstMonthlyBin = page.locator(".monthly-histogram .histogram-hit-area").first();
+  await firstMonthlyBin.hover();
+  await expect(page.locator(".monthly-histogram .histogram-tooltip")).toContainText("All dives:");
+  await expect(page.locator(".monthly-histogram .histogram-tooltip")).toContainText(
+    "Selected dives:",
+  );
+  await expect(page.locator(".monthly-histogram .histogram-tooltip")).toHaveCSS(
+    "white-space",
+    "normal",
+  );
+  for (const chart of await page.locator(".histogram-chart").all()) {
+    await expect(chart.locator(".histogram-hit-area").first()).toHaveAttribute(
+      "aria-label",
+      /All dives: \d+ · Selected dives: \d+/,
+    );
+  }
   const percentageAxisMaximums = await page
     .locator(".distribution-chart")
     .filter({ has: page.getByRole("heading", { name: /Maximum (CNS|GF99)/ }) })
@@ -440,11 +496,14 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.getByRole("heading", { name: "Depth Profile" })).toBeVisible();
   await expect(page.locator(".profile-axis-label")).toHaveCount(10);
   await page.locator("#profile-chart svg").hover({ position: { x: 200, y: 100 } });
+  await expect(page.locator(".chart-tooltip > span")).toHaveCount(1);
   await expect(page.locator(".chart-tooltip")).toContainText(
     "Dive 44 · Example Island, Test Region · Far Reef",
   );
   await expect(page.locator(".chart-tooltip")).toContainText("m ·");
   await expect(page.locator(".chart-tooltip")).toContainText("min");
+  await expect(page.locator(".profile-line").first()).toHaveCSS("stroke-width", "1.25px");
+  await expect(page.locator(".profile-hover-point")).toBeVisible();
 
   const [mapBox, chartBox] = await Promise.all([
     page.locator("#map").boundingBox(),
