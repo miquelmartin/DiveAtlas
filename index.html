@@ -248,13 +248,12 @@
           <section class="dashboard-pane dive-list-pane" aria-label="Filtered dives">
             <div class="dive-list-controls">
               <fieldset class="dive-control-section">
-                <legend>Selection</legend>
+                <legend>Select</legend>
                 <div class="dive-selection-actions" role="group" aria-label="Select dives">
                   <button id="select-map-dives" type="button" disabled>Map</button>
                   <button id="select-list-dives" type="button" disabled>All</button>
                   <button id="clear-view-dives" type="button" disabled>None</button>
                 </div>
-                <label><input id="show-outside-map" type="checkbox" disabled> Show dives outside the map</label>
               </fieldset>
               <fieldset class="dive-control-section dive-filter-controls">
                 <legend>Filters</legend>
@@ -264,6 +263,7 @@
                   <label>Deeper than <span><input id="min-depth" type="number" min="0" step="1" inputmode="decimal" value="0"> m</span></label>
                   <label>Longer than <span><input id="min-duration" type="number" min="0" step="1" inputmode="decimal" value="0"> min</span></label>
                 </div>
+                <label><input id="show-outside-map" type="checkbox" disabled> Show dives outside the map</label>
                 <p id="view-result-count">0 dives</p>
               </fieldset>
             </div>

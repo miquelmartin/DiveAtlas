@@ -151,33 +151,42 @@ function renderMonthlyHistogram(dives, libraryDives, onSelectDives) {
   return section;
 }
 
-function renderDiveTypeDonut(dives) {
+function renderDiveTypeDonut(dives, libraryDives) {
   const section = document.createElement("section");
   section.className = "dive-type-summary";
   const heading = document.createElement("h3");
   heading.textContent = "Decompression Dives";
+  if (!libraryDives.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No data";
+    section.append(heading, empty);
+    return section;
+  }
   const counts = [
     {
       key: "decompression",
       label: "Decompression",
-      count: dives.filter((dive) => dive.decoDive === true).length,
+      count: libraryDives.filter((dive) => dive.decoDive === true).length,
+      selectedCount: dives.filter((dive) => dive.decoDive === true).length,
     },
     {
       key: "no-decompression",
       label: "No-decompression",
-      count: dives.filter((dive) => dive.decoDive === false).length,
+      count: libraryDives.filter((dive) => dive.decoDive === false).length,
+      selectedCount: dives.filter((dive) => dive.decoDive === false).length,
     },
   ];
   counts.push({
     key: "unknown",
     label: "Unknown",
-    count: dives.length - counts[0].count - counts[1].count,
+    count: libraryDives.length - counts[0].count - counts[1].count,
+    selectedCount: dives.length - counts[0].selectedCount - counts[1].selectedCount,
   });
 
   const svg = svgElement("svg", {
     viewBox: "0 0 100 100",
     role: "img",
-    "aria-label": `${counts[0].count} decompression, ${counts[1].count} no-decompression, and ${counts[2].count} unknown dives`,
+    "aria-label": `${counts[0].count} decompression, ${counts[1].count} no-decompression, and ${counts[2].count} unknown dives in the library; ${dives.length} selected`,
   });
   svg.append(
     svgElement("circle", {
@@ -191,7 +200,7 @@ function renderDiveTypeDonut(dives) {
   let offset = 0;
   counts.forEach((item) => {
     if (!item.count) return;
-    const percentage = (item.count / dives.length) * 100;
+    const percentage = (item.count / libraryDives.length) * 100;
     const segment = svgElement("circle", {
       cx: 50,
       cy: 50,
@@ -205,12 +214,26 @@ function renderDiveTypeDonut(dives) {
       tabindex: "0",
     });
     const title = svgElement("title");
-    title.textContent = `${item.count} ${item.label.toLowerCase()} dive${
-      item.count === 1 ? "" : "s"
-    }`;
+    title.textContent = `${item.label} · All dives: ${item.count} · Selected dives: ${item.selectedCount}`;
     segment.setAttribute("aria-label", title.textContent);
     segment.append(title);
     svg.append(segment);
+    if (item.selectedCount) {
+      const selectedPercentage = (item.selectedCount / libraryDives.length) * 100;
+      svg.append(
+        svgElement("circle", {
+          cx: 50,
+          cy: 50,
+          r: 32,
+          pathLength: 100,
+          "stroke-dasharray": `${selectedPercentage} ${100 - selectedPercentage}`,
+          "stroke-dashoffset": -offset,
+          transform: "rotate(-90 50 50)",
+          class: "donut-selection-segment",
+          "aria-hidden": "true",
+        }),
+      );
+    }
     offset += percentage;
   });
   const total = svgElement("text", {
@@ -219,7 +242,7 @@ function renderDiveTypeDonut(dives) {
     "text-anchor": "middle",
     class: "donut-total",
   });
-  total.textContent = String(dives.length);
+  total.textContent = String(libraryDives.length);
   const label = svgElement("text", {
     x: 50,
     y: 61,
@@ -236,7 +259,12 @@ function renderDiveTypeDonut(dives) {
     const entry = document.createElement("li");
     const swatch = document.createElement("span");
     swatch.className = `donut-key donut-${item.key}`;
-    entry.append(swatch, document.createTextNode(`${item.label} ${item.count}`));
+    entry.append(
+      swatch,
+      document.createTextNode(
+        `${item.label} ${item.count}${item.selectedCount ? ` (${item.selectedCount} selected)` : ""}`,
+      ),
+    );
     legend.append(entry);
   });
   section.append(heading, svg, legend);
@@ -342,7 +370,7 @@ function renderDepthDurationScatter(dives, libraryDives, durationMaximum, depthM
     x:
       plot.left +
       (dive.durationSeconds / 60 / durationDomain) * (plot.right - plot.left),
-    y: plot.bottom - (dive.maxDepth / depthDomain) * (plot.bottom - plot.top),
+    y: plot.top + (dive.maxDepth / depthDomain) * (plot.bottom - plot.top),
   });
   const renderPoint = (dive, selected, interactive = true) => {
     const { x, y } = coordinates(dive);
@@ -416,19 +444,26 @@ function renderDepthDurationScatter(dives, libraryDives, durationMaximum, depthM
       text: `${durationMaximum.toFixed(1)} min`,
       anchor: "end",
     },
-    { x: plot.left - 5, y: plot.bottom + 3, text: "0", anchor: "end" },
+    {
+      x: plot.left - 5,
+      y: plot.bottom + 3,
+      text: `${depthMaximum.toFixed(1)} m`,
+      anchor: "end",
+      className: "scatter-axis-y-label",
+    },
     {
       x: plot.left - 5,
       y: plot.top + 3,
-      text: `${depthMaximum.toFixed(1)} m`,
+      text: "0 m",
       anchor: "end",
+      className: "scatter-axis-y-label",
     },
-  ].forEach(({ x, y, text, anchor }) => {
+  ].forEach(({ x, y, text, anchor, className = "" }) => {
     const label = svgElement("text", {
       x,
       y,
       "text-anchor": anchor,
-      class: "selection-axis-label",
+      class: `selection-axis-label ${className}`.trim(),
     });
     label.textContent = text;
     svg.append(label);
@@ -459,12 +494,6 @@ export function renderSelectionStatistics(
   { libraryDives = dives, onSelectDives = () => {} } = {},
 ) {
   container.replaceChildren();
-  if (!dives.length) {
-    const empty = document.createElement("p");
-    empty.textContent = "Select dives to see statistics.";
-    container.append(empty);
-    return;
-  }
 
   const maximum = (key, fallback, transform = (value) => value) =>
     Math.max(
@@ -501,7 +530,7 @@ export function renderSelectionStatistics(
   charts.className = "selection-grid";
   charts.append(
     renderMonthlyHistogram(dives, libraryDives, onSelectDives),
-    renderDiveTypeDonut(dives),
+    renderDiveTypeDonut(dives, libraryDives),
   );
   [
     {
