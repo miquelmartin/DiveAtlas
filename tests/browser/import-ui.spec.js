@@ -270,6 +270,14 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator("#view-dive-list")).not.toContainText("UNKNOWN");
   const showOutsideMap = page.getByRole("checkbox", { name: "Show dives outside the map" });
   const selectionActions = page.getByRole("group", { name: "Select dives" });
+  const resetFilters = page.getByRole("button", { name: "Reset filters" });
+  await expect(resetFilters).toHaveText("×");
+  const selectionButtonHeight = await selectionActions.getByRole("button", { name: "Map" }).evaluate(
+    (button) => button.getBoundingClientRect().height,
+  );
+  const resetButtonWidth = await resetFilters.evaluate((button) => button.getBoundingClientRect().width);
+  expect(selectionButtonHeight).toBeLessThan(24);
+  expect(resetButtonWidth).toBeLessThan(32);
   await expect(page.locator(".dive-list-pane #show-outside-map")).toHaveCount(1);
   await expect(showOutsideMap).toBeEnabled();
   await showOutsideMap.check();
@@ -286,6 +294,18 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(3);
   await expect(page.locator(".marker-cluster.all-selected-dives")).toHaveCount(1);
   await expect(page.locator(".dive-map-marker.is-selected")).toHaveCount(1);
+  const selectionColor = await page.locator(".dive-map-marker.is-selected").evaluate((marker) => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--cp-selection)";
+    document.body.append(probe);
+    const expected = getComputedStyle(probe).color;
+    probe.remove();
+    return {
+      selected: getComputedStyle(marker).backgroundColor,
+      expected,
+    };
+  });
+  expect(selectionColor.selected).toBe(selectionColor.expected);
   await expect(page.locator("#dive-detail")).toContainText("3 dives selected");
   await expect(page.locator(".monthly-bar")).toHaveCount(1);
   await expect(page.locator(".donut-total")).toHaveText("3");
