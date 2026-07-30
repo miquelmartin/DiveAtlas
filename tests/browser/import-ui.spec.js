@@ -18,6 +18,7 @@ async function openProductionShell(page) {
   await expect(page.locator("#dive-selection-status")).toHaveText(
     "No dive files selected.",
   );
+  await expect(page.locator("#theme-select")).toHaveValue("system");
   return errors;
 }
 
@@ -48,6 +49,14 @@ test("dedicated file pickers show selection, results, and refreshed tables", asy
   await expect(page.locator("#dive-import-results")).toContainText("malformed XML");
   await page.getByRole("button", { name: "View" }).click();
   await expect(page.locator(".leaflet-marker-icon")).toHaveCount(1);
+  await page.locator("#theme-select").selectOption("dark");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  expect(await page.evaluate(() => localStorage.getItem("diveatlas-theme"))).toBe("dark");
+  await page.reload();
+  await expect(page.locator("#theme-select")).toHaveValue("dark");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.locator("#theme-select").selectOption("system");
+  expect(await page.evaluate(() => localStorage.getItem("diveatlas-theme"))).toBeNull();
   expect(errors).toEqual([]);
 });
 

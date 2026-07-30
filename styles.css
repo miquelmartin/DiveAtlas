@@ -128,6 +128,26 @@ h4 {
   background: var(--cp-bg-elevated);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.theme-control {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--cp-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.theme-control select {
+  min-height: 1.8rem;
+  padding-block: 0.15rem;
+}
+
 .workspace-tabs {
   display: flex;
   gap: 0.15rem;
@@ -927,6 +947,14 @@ tbody tr:hover {
 
   .app-header {
     padding-inline: 0.4rem;
+  }
+
+  .theme-control {
+    font-size: 0;
+  }
+
+  .theme-control select {
+    font-size: 0.875rem;
   }
 
   main {

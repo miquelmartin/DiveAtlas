@@ -1,4 +1,4 @@
-const CACHE_NAME = "diveatlas-shell-v6";
+const CACHE_NAME = "diveatlas-shell-v7";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -26,6 +26,7 @@ const APP_SHELL = [
   "./src/map.js",
   "./src/parser.js",
   "./src/profile-chart.js",
+  "./src/theme.js",
   "./src/utils.js",
   "./src/view-model.js"
 ];

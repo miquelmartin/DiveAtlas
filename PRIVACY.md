@@ -4,7 +4,7 @@ DiveAtlas is a static, browser-only application. It has no account system, analy
 
 ## Local storage
 
-The library is tied to the browser profile and origin where it was imported. Reloading the app restores it from IndexedDB. Clearing site data, using private-browsing storage, removing the browser profile, or losing the device can remove the library. Persistent-storage permission can reduce automatic eviction risk but is not a backup. Keep the original UDDF exports as the source-of-truth archive and download DiveAtlas backups regularly.
+The library is tied to the browser profile and origin where it was imported. Reloading the app restores it from IndexedDB. A light/dark theme override, when selected, is stored locally in `localStorage`; System mode stores no override. Clearing site data, using private-browsing storage, removing the browser profile, or losing the device can remove the library and preference. Persistent-storage permission can reduce automatic eviction risk but is not a backup. Keep the original UDDF exports as the source-of-truth archive and download DiveAtlas backups regularly.
 
 ## Network connections
 

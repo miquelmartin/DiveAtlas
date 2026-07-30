@@ -10,7 +10,9 @@ describe("GitHub Pages and offline shell", () => {
     const references = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((match) => match[1]);
     expect(references.filter((reference) => reference.startsWith("/"))).toEqual([]);
     expect(html).toContain('src="src/app.js"');
+    expect(html).toContain('src="src/theme.js"');
     expect(html).not.toMatch(/<script[^>]+https?:/);
+    expect(html).not.toMatch(/<script(?:\s[^>]*)?>\s*\(\(\)/);
   });
 
   it("uses relative manifest scope and start URL", async () => {
