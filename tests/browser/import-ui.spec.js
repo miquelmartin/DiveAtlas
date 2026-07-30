@@ -93,6 +93,55 @@ test("dropping a UDDF updates selection and imports through the real UI", async 
   expect(errors).toEqual([]);
 });
 
+test("coincident dive clusters spiderfy for individual selection", async ({ page }) => {
+  const errors = await openProductionShell(page);
+  const template = await readFile(representative, "utf8");
+  const dives = Array.from({ length: 10 }, (_, index) => {
+    const number = 100 + index;
+    const day = String(index + 1).padStart(2, "0");
+    const contents = template
+      .replace('id="synthetic-dive-42"', `id="coincident-${number}"`)
+      .replace("<divenumber>42</divenumber>", `<divenumber>${number}</divenumber>`)
+      .replace(
+        "<datetime>2025-06-15T09:30:00Z</datetime>",
+        `<datetime>2025-06-${day}T09:30:00Z</datetime>`,
+      );
+    return {
+      name: `coincident-${number}.uddf`,
+      mimeType: "application/xml",
+      buffer: Buffer.from(contents),
+    };
+  });
+  await page.locator("#dive-files").setInputFiles(dives);
+  await expect(page.locator("#dive-count")).toHaveText("10");
+  await page.locator("#coordinate-file").setInputFiles({
+    name: "coincident-map.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      'Location,Site,Latitude,Longitude\n"Example Island, Test Region",Blue Wall,51.456,-0.556',
+    ),
+  });
+  await page.getByRole("button", { name: "View" }).click();
+  await expect(page.locator(".marker-cluster")).toHaveCount(1);
+  const coincidentCluster = page.getByRole("button", { name: "10", exact: true });
+  await expect(coincidentCluster).toBeVisible();
+  await coincidentCluster.click();
+  await expect(page.locator(".leaflet-marker-icon.dive-map-marker")).toHaveCount(10);
+  await expect(page.locator(".leaflet-marker-icon[title='Dive 100']")).toBeVisible();
+  await page.locator(".leaflet-marker-icon[title='Dive 100']").click();
+  await expect(page.getByRole("button", { name: /Dive 100,/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.getByRole("group", { name: "Select dives" }).getByRole("button", { name: "None" }).click();
+  await page.locator("#map").click({ position: { x: 10, y: 10 } });
+  await expect(page.locator(".marker-cluster")).toHaveCount(1);
+  await page.getByRole("button", { name: "10", exact: true }).focus();
+  await page.getByRole("button", { name: "10", exact: true }).press("Enter");
+  await expect(page.locator(".leaflet-marker-icon.dive-map-marker")).toHaveCount(10);
+  expect(errors).toEqual([]);
+});
+
 test("dense dashboard clusters dives, filters the map, and compares profiles", async ({ page }) => {
   const errors = await openProductionShell(page);
   const first = await readFile(representative, "utf8");
@@ -138,6 +187,17 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await page.getByRole("button", { name: "View" }).click();
   await expect(page.locator(".marker-cluster")).toHaveCount(1);
   await expect(page.locator(".marker-cluster")).toHaveText("2");
+  await page.locator(".marker-cluster").click();
+  await expect(page.locator(".leaflet-marker-icon.dive-map-marker")).toHaveCount(3);
+  await expect(page.locator(".leaflet-marker-icon[title='Dive 42']")).toBeVisible();
+  await page.locator(".leaflet-marker-icon[title='Dive 42']").click();
+  await expect(page.getByRole("button", { name: /Dive 42,/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.getByRole("group", { name: "Select dives" }).getByRole("button", { name: "None" }).click();
+  await page.locator("#map").click({ position: { x: 10, y: 10 } });
+  await expect(page.locator(".marker-cluster")).toHaveCount(1);
   await expect(page.locator(".leaflet-marker-icon:not(.marker-cluster)")).toHaveCount(1);
   await expect(page.locator(".dive-map-marker")).toHaveCount(1);
   await expect(page.locator(".dive-map-marker")).toHaveText("");
@@ -188,7 +248,24 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     "aria-label",
     "3 decompression, 0 no-decompression, and 0 unknown dives",
   );
-  await expect(page.locator(".distribution-chart")).toHaveCount(4);
+  await expect(page.locator(".distribution-chart")).toHaveCount(5);
+  await expect(page.getByRole("heading", { name: "Maximum GF99" })).toBeVisible();
+  const statisticsLayout = await page.locator("#selection-stats").evaluate((container) => {
+    const background = getComputedStyle(container).backgroundColor;
+    const distribution = container.querySelector(".distribution-chart");
+    const monthly = container.querySelector(".monthly-histogram").getBoundingClientRect();
+    const diveTypes = container.querySelector(".dive-type-summary").getBoundingClientRect();
+    const legend = container.querySelector(".donut-legend");
+    return {
+      background,
+      distributionBackground: getComputedStyle(distribution).backgroundColor,
+      diveTypesWiderThanMonthly: diveTypes.width > monthly.width,
+      legendFits: legend.scrollWidth <= legend.clientWidth,
+    };
+  });
+  expect(statisticsLayout.distributionBackground).toBe(statisticsLayout.background);
+  expect(statisticsLayout.diveTypesWiderThanMonthly).toBe(true);
+  expect(statisticsLayout.legendFits).toBe(true);
   await expect(page.locator(".profile-legend")).toHaveCount(0);
   await selectionActions.getByRole("button", { name: "None" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(0);
