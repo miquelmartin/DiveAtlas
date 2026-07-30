@@ -55,6 +55,9 @@ test("dedicated file pickers show selection, results, and refreshed tables", asy
   await page.reload();
   await expect(page.locator("#theme-select")).toHaveValue("dark");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("#view-workspace")).toBeVisible();
+  await expect(page.getByRole("button", { name: "View" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".leaflet-marker-icon")).toHaveCount(1);
   await page.locator("#theme-select").selectOption("system");
   expect(await page.evaluate(() => localStorage.getItem("diveatlas-theme"))).toBeNull();
   expect(errors).toEqual([]);

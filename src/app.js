@@ -790,6 +790,7 @@ async function start() {
   await openDatabase();
   registerEvents();
   await refreshLibrary();
+  if (state.dives.length) setWorkspace("view");
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register(new URL("../sw.js", import.meta.url));
   }
