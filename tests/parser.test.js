@@ -12,6 +12,7 @@ import {
 
 const fixture = (name) =>
   readFile(join(process.cwd(), "tests", "fixtures", name), "utf8");
+const sample = (name) => readFile(join(process.cwd(), "samples", name), "utf8");
 
 describe("UDDF parser", () => {
   it("parses representative Shearwater metadata and profile fields", async () => {
@@ -34,6 +35,36 @@ describe("UDDF parser", () => {
     expect(profile.samples[0].temperature).toBeCloseTo(20);
     expect(profile.samples[2].nodeco).toBe(0);
     expect(profile.samples[1]).toMatchObject({ gf99: 35, cns: 2, ppo2: 1.1 });
+  });
+
+  it("parses the sanitized public sample dives and matching coordinates", async () => {
+    const bajon = parseUddf(await sample("bajon-del-rio.uddf"), "bajon-del-rio.uddf")[0];
+    const thistlegorm = parseUddf(
+      await sample("ss-thistlegorm.uddf"),
+      "ss-thistlegorm.uddf",
+    )[0];
+    const coordinates = parseCoordinateCsv(await sample("locations.csv"), "locations.csv");
+
+    expect(bajon.dive).toMatchObject({
+      location: "Fuerteventura, Corralejo",
+      site: "Bajon del Rio",
+      durationSeconds: 2880,
+      maxDepth: 27.8,
+      sampleCount: 6,
+    });
+    expect(thistlegorm.dive).toMatchObject({
+      location: "Egypt, Red Sea",
+      site: "SS Thistlegorm wreck",
+      durationSeconds: 3000,
+      maxDepth: 30.2,
+      sampleCount: 6,
+    });
+    expect(coordinates.headers).toEqual(["Location", "Site", "Latitude", "Longitude"]);
+    expect(coordinates.issues).toEqual([]);
+    expect(coordinates.mappings.map(({ location, site }) => ({ location, site }))).toEqual([
+      { location: "Fuerteventura, Corralejo", site: "Bajon del Rio" },
+      { location: "Egypt, Red Sea", site: "SS Thistlegorm wreck" },
+    ]);
   });
 
   it("rejects malformed and unsupported documents with actionable errors", async () => {

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uddf xmlns="http://www.streit.cc/uddf/3.2/" version="3.2.0">
+  <diver>
+    <owner>
+      <equipment>
+        <divecomputer id="sample-computer">
+          <manufacturer><name>Shearwater</name></manufacturer>
+          <model>Sample computer</model>
+          <serialnumber>SAMPLE</serialnumber>
+        </divecomputer>
+      </equipment>
+    </owner>
+  </diver>
+  <divesite>
+    <site id="SS Thistlegorm wreck : Egypt, Red Sea">
+      <name>SS Thistlegorm wreck</name>
+      <geography><location>Egypt, Red Sea</location></geography>
+    </site>
+  </divesite>
+  <decomodel>
+    <buehlmann id="sample-deco">
+      <gradientfactorlow>40</gradientfactorlow>
+      <gradientfactorhigh>85</gradientfactorhigh>
+    </buehlmann>
+  </decomodel>
+  <profiledata>
+    <repetitiongroup>
+      <dive id="sample-ss-thistlegorm">
+        <informationbeforedive>
+          <divenumber>2</divenumber>
+          <datetime>2024-09-18T07:15:00Z</datetime>
+          <surfacepressure>1.010</surfacepressure>
+        </informationbeforedive>
+        <samples>
+          <waypoint>
+            <divetime>0</divetime><depth>0</depth><temperature>301.15</temperature>
+            <nodecotime>5940</nodecotime><gradientfactor>0</gradientfactor>
+          </waypoint>
+          <waypoint>
+            <divetime>180</divetime><depth>16.0</depth><temperature>300.15</temperature>
+            <nodecotime>2100</nodecotime><gradientfactor>27</gradientfactor><cns>1</cns>
+          </waypoint>
+          <waypoint>
+            <divetime>480</divetime><depth>30.2</depth><temperature>299.15</temperature>
+            <nodecotime>720</nodecotime><gradientfactor>53</gradientfactor><cns>5</cns>
+          </waypoint>
+          <waypoint>
+            <divetime>1680</divetime><depth>26.5</depth><temperature>299.15</temperature>
+            <nodecotime>240</nodecotime><gradientfactor>72</gradientfactor><cns>12</cns>
+          </waypoint>
+          <waypoint>
+            <divetime>2640</divetime><depth>5.0</depth><temperature>300.15</temperature>
+            <nodecotime>1800</nodecotime><gradientfactor>44</gradientfactor><cns>15</cns>
+          </waypoint>
+          <waypoint>
+            <divetime>3000</divetime><depth>0.5</depth><temperature>301.15</temperature>
+            <nodecotime>5940</nodecotime><gradientfactor>20</gradientfactor><cns>15</cns>
+          </waypoint>
+        </samples>
+        <informationafterdive>
+          <diveduration>3000</diveduration>
+        </informationafterdive>
+      </dive>
+    </repetitiongroup>
+  </profiledata>
+</uddf>

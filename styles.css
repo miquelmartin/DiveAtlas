@@ -227,6 +227,67 @@ main {
   gap: 0.6rem;
 }
 
+.welcome-dialog {
+  width: min(42rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--cp-border-strong);
+  border-radius: 0.625rem;
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  box-shadow: var(--cp-shadow);
+}
+
+.welcome-dialog::backdrop {
+  background: var(--cp-overlay);
+  backdrop-filter: blur(2px);
+}
+
+.welcome-content {
+  padding: 1.5rem 1.5rem 0.75rem;
+}
+
+.welcome-content h2 {
+  margin: 0 2rem 1rem 0;
+  font-size: 1.5rem;
+}
+
+.welcome-content p,
+.welcome-content ol {
+  margin: 0 0 1rem;
+}
+
+.welcome-content li + li {
+  margin-top: 0.35rem;
+}
+
+.welcome-close {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  width: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--cp-text-muted);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.welcome-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.75rem 1.5rem 1.5rem;
+  border-top: 1px solid var(--cp-border);
+}
+
+.welcome-actions button {
+  min-width: 7rem;
+}
+
 .section-heading,
 .card-heading,
 .table-toolbar,
@@ -1545,6 +1606,19 @@ tbody tr:hover {
 }
 
 @media (max-width: 34rem) {
+  .welcome-dialog {
+    width: calc(100% - 1rem);
+    max-height: calc(100% - 1rem);
+  }
+
+  .welcome-content {
+    padding: 1.1rem 1rem 0.5rem;
+  }
+
+  .welcome-actions {
+    padding: 0.75rem 1rem 1rem;
+  }
+
   .summary-grid,
   .dive-detail dl {
     grid-template-columns: 1fr 1fr;

@@ -102,6 +102,9 @@ const elements = Object.fromEntries(
     "selection-empty",
     "profile-chart",
     "map",
+    "welcome-dialog",
+    "close-welcome",
+    "accept-welcome",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
@@ -869,6 +872,12 @@ function registerEvents() {
   document.querySelectorAll("[data-workspace]").forEach((button) =>
     button.addEventListener("click", () => setWorkspace(button.dataset.workspace)),
   );
+  ["close-welcome", "accept-welcome"].forEach((id) => {
+    elements[id].addEventListener("click", () => elements["welcome-dialog"].close());
+  });
+  elements["welcome-dialog"].addEventListener("click", (event) => {
+    if (event.target === elements["welcome-dialog"]) elements["welcome-dialog"].close();
+  });
   elements["dive-files"].addEventListener("change", (event) => {
     setDiveFiles(event.target.files);
     event.target.value = "";
@@ -1041,6 +1050,7 @@ async function start() {
   registerEvents();
   await refreshLibrary();
   setWorkspace(state.dives.length ? "view" : "data");
+  if (!state.dives.length) elements["welcome-dialog"].showModal();
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register(new URL("../sw.js", import.meta.url));
   }
