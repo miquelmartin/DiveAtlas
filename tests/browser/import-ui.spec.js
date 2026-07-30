@@ -179,6 +179,8 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
 
   await selectionActions.getByRole("button", { name: "All" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(3);
+  await expect(page.locator(".marker-cluster.all-selected-dives")).toHaveCount(1);
+  await expect(page.locator(".dive-map-marker.is-selected")).toHaveCount(1);
   await expect(page.locator("#dive-detail")).toContainText("3 dives selected");
   await expect(page.locator(".monthly-bar")).toHaveCount(1);
   await expect(page.locator(".donut-total")).toHaveText("3");
@@ -190,7 +192,13 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator(".profile-legend")).toHaveCount(0);
   await selectionActions.getByRole("button", { name: "None" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(0);
+  await expect(page.locator(".marker-cluster.has-selected-dives")).toHaveCount(0);
+  await expect(page.locator(".dive-map-marker.is-selected")).toHaveCount(0);
   await expect(selectionActions.getByRole("button", { name: "None" })).toBeDisabled();
+  await page.getByRole("button", { name: /Dive 42,/ }).click();
+  await expect(page.locator(".marker-cluster.has-selected-dives")).toHaveCount(1);
+  await expect(page.locator(".marker-cluster.all-selected-dives")).toHaveCount(0);
+  await selectionActions.getByRole("button", { name: "None" }).click();
   await selectionActions.getByRole("button", { name: "Map" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(3);
   await selectionActions.getByRole("button", { name: "None" }).click();
