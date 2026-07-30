@@ -54,6 +54,25 @@ describe("incremental import flow", () => {
     );
   });
 
+  it("persists dives that have metadata but no profile samples", async () => {
+    const database = await testDatabase();
+    const metadataOnly = uddf.replace(/        <samples>[\s\S]*?        <\/samples>\r?\n/, "");
+    const outcome = await importSources([source("metadata-only.uddf", metadataOnly)], {
+      databasePromise: database,
+      yieldToMain: async () => {},
+    });
+    expect(outcome.results[0]).toMatchObject({
+      type: "success",
+      message: "1 dive(s) imported",
+    });
+    expect(await getAll("dives", database)).toEqual([
+      expect.objectContaining({ number: 42, sampleCount: 0 }),
+    ]);
+    expect(await getAll("profiles", database)).toEqual([
+      expect.objectContaining({ samples: [] }),
+    ]);
+  });
+
   it("skips exact sources and reports changed dives with the same stable identity", async () => {
     const database = await testDatabase();
     await importSources([source("first.uddf", uddf)], {

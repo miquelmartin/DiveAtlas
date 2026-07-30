@@ -44,6 +44,10 @@ test("dedicated file pickers show selection, results, and refreshed tables", asy
   await expect(page.locator("#mapping-count")).toHaveText("2");
   await expect(page.locator("#mapping-table-body")).toContainText("Blue Wall");
   await expect(page.locator("#mapping-table-body")).toContainText("Spain");
+  const dataCardHeadings = await page.locator("#data-workspace > .card h3").allTextContents();
+  expect(dataCardHeadings.indexOf("Known locations")).toBeLessThan(
+    dataCardHeadings.indexOf("Imported dives"),
+  );
 
   await page.locator("#dive-files").setInputFiles(malformed);
   await expect(page.locator("#dive-import-results")).toContainText("malformed XML");
@@ -95,7 +99,8 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   const second = first
     .replace('id="synthetic-dive-42"', 'id="second"')
     .replace("<divenumber>42</divenumber>", "<divenumber>43</divenumber>")
-    .replace("<datetime>2025-06-15T09:30:00Z</datetime>", "<datetime>2025-06-16T09:30:00Z</datetime>");
+    .replace("<datetime>2025-06-15T09:30:00Z</datetime>", "<datetime>2025-06-16T09:30:00Z</datetime>")
+    .replace("<nodecotime>3000</nodecotime>", "<nodecotime>0</nodecotime>");
   const far = first
     .replace('id="synthetic-dive-42"', 'id="far"')
     .replace("<divenumber>42</divenumber>", "<divenumber>44</divenumber>")
@@ -116,19 +121,71 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     ),
   });
   await expect(page.locator("#mapping-count")).toHaveText("2");
+  await expect(page.locator(".mapping-location-row")).toHaveCount(1);
+  await expect(page.locator(".mapping-location-count")).toHaveText("2 sites");
+  await expect(page.locator(".mapping-site-row")).toHaveCount(2);
   await page.getByRole("button", { name: "View" }).click();
   await expect(page.locator(".marker-cluster")).toHaveCount(1);
   await expect(page.locator(".marker-cluster")).toHaveText("2");
   await expect(page.locator(".leaflet-marker-icon:not(.marker-cluster)")).toHaveCount(1);
+  await expect(page.locator(".dive-map-marker")).toHaveCount(1);
+  await expect(page.locator(".dive-map-marker")).toHaveText("");
   await expect(page.locator('.leaflet-tile[src*="server.arcgisonline.com"]').first()).toBeAttached();
   await expect(page.locator(".dive-row")).toHaveCount(3);
   await expect(page.locator(".country-group")).toHaveCount(0);
   await expect(page.locator("#min-depth")).toHaveValue("0");
   await expect(page.locator("#min-duration")).toHaveValue("0");
+  await expect(page.locator(".dive-list-header button")).toHaveText([
+    "# ↓",
+    "Site",
+    "Location",
+    "Country",
+  ]);
+  await expect(page.locator(".dive-row").first().locator(".dive-cell")).toHaveText([
+    "44",
+    "Far Reef",
+    "Example Island, Test Region",
+    "Japan",
+  ]);
   await expect(page.locator(".dive-row").first().locator(".dive-stats")).toHaveText(
-    "2025-06-17 · Japan · 24.2 m · 3 min",
+    "2025-06-17 · 24.2 m · 3 min",
   );
   await expect(page.locator("#view-dive-list")).not.toContainText("UNKNOWN");
+  const showOutsideMap = page.getByRole("checkbox", { name: "Show dives outside the map" });
+  await expect(page.locator(".dive-list-pane #show-outside-map")).toHaveCount(1);
+
+  await page.getByRole("button", { name: "Select all dives in map" }).click();
+  await expect(page.locator(".dive-row.is-selected")).toHaveCount(3);
+  await expect(page.locator("#dive-detail")).toContainText("3 dives selected");
+  await expect(page.locator(".monthly-bar")).toHaveCount(1);
+  await expect(page.locator(".deco-count")).toHaveText("1");
+  await expect(page.locator(".profile-legend")).toHaveCount(0);
+  for (let index = 0; index < 3; index += 1) {
+    await page.locator(".dive-row.is-selected").first().click();
+  }
+  await expect(page.locator(".dive-row.is-selected")).toHaveCount(0);
+  const [mapBounds, markerBounds] = await Promise.all([
+    page.locator("#map").boundingBox(),
+    page.locator(".dive-map-marker").boundingBox(),
+  ]);
+  await page.locator(".leaflet-marker-icon").evaluateAll((markers) => {
+    markers.forEach((marker) => {
+      marker.style.pointerEvents = "none";
+    });
+  });
+  await page.locator("#map").dblclick({
+    position: {
+      x: markerBounds.x - mapBounds.x + markerBounds.width / 2,
+      y: markerBounds.y - mapBounds.y + markerBounds.height / 2,
+    },
+  });
+  await expect
+    .poll(() => page.locator(".dive-row.is-selected").count())
+    .toBeGreaterThan(0);
+  await page.locator("#clear-filters").click();
+  while ((await page.locator(".dive-row.is-selected").count()) > 0) {
+    await page.locator(".dive-row.is-selected").first().click();
+  }
 
   await page.locator(".leaflet-control-layers-toggle").hover({ force: true });
   await expect(page.getByText("Satellite", { exact: true })).toBeVisible();
@@ -141,7 +198,6 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator("#profile-chart .profile-line")).toHaveCount(1);
   await page.getByRole("button", { name: /Dive 42,/ }).click();
   await expect(page.locator("#dive-detail")).toContainText("2 dives selected");
-  await expect(page.locator(".profile-legend li")).toHaveCount(2);
   await expect(page.locator("#profile-chart .profile-line")).toHaveCount(2);
   await expect(page.locator(".profile-axis-label")).toHaveCount(10);
   await page.locator("#profile-chart svg").hover({ position: { x: 200, y: 100 } });
@@ -163,16 +219,14 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator("#view-result-count")).toContainText("of 3 dives in map view");
   const visibleDiveCount = await page.locator(".dive-row").count();
   expect(visibleDiveCount).toBeLessThan(3);
-  await page.getByRole("button", { name: "Show dives outside the map" }).click();
+  await showOutsideMap.check();
   await expect(page.locator(".dive-row")).toHaveCount(3);
   await expect(page.locator(".dive-row.is-outside-map")).toHaveCount(3 - visibleDiveCount);
-  await expect(page.getByRole("button", { name: "Hide dives outside the map" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await page.locator("#reset-map-filter").click();
+  await expect(showOutsideMap).toBeChecked();
+  await expect(page.getByRole("button", { name: "Show all map" })).toHaveCount(0);
+  await page.locator("#clear-filters").click();
   await expect(page.locator("#view-result-count")).toHaveText("3 dives");
-  await expect(page.getByRole("button", { name: "Show dives outside the map" })).toBeDisabled();
+  await expect(showOutsideMap).toBeDisabled();
 
   await page.locator("#date-range-end").evaluate((input) => {
     input.value = "1";

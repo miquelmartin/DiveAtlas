@@ -157,10 +157,28 @@
           <article class="metric"><span>Coordinates</span><strong id="mapping-count">0</strong></article>
         </section>
 
+        <section class="card" aria-labelledby="mapping-heading">
+          <div class="card-heading">
+            <div><h3 id="mapping-heading">Known locations</h3><p>Sites are grouped by location. Matching ignores case and extra whitespace.</p></div>
+            <span class="step-badge">02</span>
+          </div>
+          <div class="table-toolbar">
+            <label>Search mappings <input id="mapping-search" type="search" placeholder="Location or site"></label>
+            <button id="remove-mappings" class="danger" type="button" disabled>Remove selected</button>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th scope="col"><input id="select-all-mappings" type="checkbox" aria-label="Select all visible mappings"></th><th scope="col">Location / Site</th><th scope="col">Country</th><th scope="col">Latitude</th><th scope="col">Longitude</th><th scope="col">Confidence</th></tr></thead>
+              <tbody id="mapping-table-body"></tbody>
+            </table>
+          </div>
+          <p id="mapping-empty" class="empty-state">No coordinate mappings imported yet.</p>
+        </section>
+
         <section class="card" aria-labelledby="dives-heading">
           <div class="card-heading">
             <div><h3 id="dives-heading">Imported dives</h3><p>Search, inspect, and remove dives with their profile samples.</p></div>
-            <span class="step-badge">02</span>
+            <span class="step-badge">03</span>
           </div>
           <div class="table-toolbar">
             <label>Search dives <input id="dive-search" type="search" placeholder="Site, location, date, number"></label>
@@ -173,24 +191,6 @@
             </table>
           </div>
           <p id="dive-empty" class="empty-state">No dives imported yet.</p>
-        </section>
-
-        <section class="card" aria-labelledby="mapping-heading">
-          <div class="card-heading">
-            <div><h3 id="mapping-heading">Coordinate mappings</h3><p>Location and site matching ignores case and extra whitespace.</p></div>
-            <span class="step-badge">03</span>
-          </div>
-          <div class="table-toolbar">
-            <label>Search mappings <input id="mapping-search" type="search" placeholder="Location or site"></label>
-            <button id="remove-mappings" class="danger" type="button" disabled>Remove selected</button>
-          </div>
-          <div class="table-scroll">
-            <table>
-              <thead><tr><th scope="col"><input id="select-all-mappings" type="checkbox" aria-label="Select all visible mappings"></th><th scope="col">Location</th><th scope="col">Site</th><th scope="col">Country</th><th scope="col">Latitude</th><th scope="col">Longitude</th><th scope="col">Confidence</th></tr></thead>
-              <tbody id="mapping-table-body"></tbody>
-            </table>
-          </div>
-          <p id="mapping-empty" class="empty-state">No coordinate mappings imported yet.</p>
         </section>
 
         <div class="two-column">
@@ -241,15 +241,17 @@
           <label>Deeper than <span><input id="min-depth" type="number" min="0" step="1" inputmode="decimal" value="0"> m</span></label>
           <label>Longer than <span><input id="min-duration" type="number" min="0" step="1" inputmode="decimal" value="0"> min</span></label>
           <button id="clear-filters" type="button">Reset filters</button>
-          <button id="show-outside-map" type="button" aria-pressed="false" disabled>Show dives outside the map</button>
-          <button id="reset-map-filter" type="button" disabled>Show all map</button>
         </section>
         <div class="view-dashboard">
           <section class="dashboard-pane dive-list-pane" aria-label="Filtered dives">
+            <div class="dive-list-controls">
+              <label><input id="show-outside-map" type="checkbox" disabled> Show dives outside the map</label>
+              <button id="select-map-dives" type="button" disabled>Select all dives in map</button>
+            </div>
             <div class="dive-list-header" aria-label="Sort dives">
               <button type="button" data-sort="number" data-label="#">#</button>
-              <button type="button" data-sort="location" data-label="Location">Location</button>
               <button type="button" data-sort="site" data-label="Site">Site</button>
+              <button type="button" data-sort="location" data-label="Location">Location</button>
               <button type="button" data-sort="country" data-label="Country">Country</button>
             </div>
             <div id="view-dive-list" class="dive-list"></div>
@@ -266,6 +268,7 @@
           </section>
           <section class="dashboard-pane profile-pane" aria-label="Selected dive profiles and details">
             <div id="profile-chart" class="profile-chart"></div>
+            <div id="selection-stats" class="selection-stats"><p>Select dives to see statistics.</p></div>
             <div id="dive-detail" class="dive-detail"><p>Select one or more dives to compare profiles.</p></div>
           </section>
         </div>

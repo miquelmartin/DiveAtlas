@@ -26,13 +26,19 @@ export function profilePath(
 
 export function renderProfileChart(container, samples) {
   container.replaceChildren();
-  const series = samples?.[0]?.samples
-    ? samples.filter((item) => item.samples?.length)
+  const profileSeries = samples?.[0]?.samples
+    ? samples
     : samples?.length
       ? [{ label: "Dive profile", samples }]
       : [];
+  const series = profileSeries.filter((item) => item.samples?.length);
+  const unavailableCount = profileSeries.length - series.length;
   if (!series.length) {
-    container.textContent = "No profile samples are available.";
+    container.textContent = unavailableCount
+      ? `No profile samples are available for the selected dive${
+          unavailableCount === 1 ? "" : "s"
+        }.`
+      : "No profile samples are available.";
     return;
   }
   const width = 720;
@@ -119,21 +125,15 @@ export function renderProfileChart(container, samples) {
   tooltip.setAttribute("aria-live", "polite");
   tooltip.hidden = true;
   svg.append(cursor);
-  const legend = document.createElement("ul");
-  legend.className = "profile-legend";
-  series.slice(0, 6).forEach((item, index) => {
-    const entry = document.createElement("li");
-    const swatch = document.createElement("span");
-    swatch.className = `profile-swatch profile-series-${index % 4}`;
-    entry.append(swatch, document.createTextNode(item.label));
-    legend.append(entry);
-  });
-  if (series.length > 6) {
-    const remaining = document.createElement("li");
-    remaining.textContent = `+${series.length - 6} more`;
-    legend.append(remaining);
+  container.append(svg, tooltip);
+  if (unavailableCount) {
+    const unavailable = document.createElement("p");
+    unavailable.className = "profile-unavailable";
+    unavailable.textContent = `${unavailableCount} selected dive${
+      unavailableCount === 1 ? "" : "s"
+    } ${unavailableCount === 1 ? "has" : "have"} no profile samples.`;
+    container.append(unavailable);
   }
-  container.append(svg, legend, tooltip);
 
   svg.addEventListener("pointermove", (event) => {
     const bounds = svg.getBoundingClientRect();
