@@ -935,17 +935,13 @@ tbody tr:hover {
 
 .selection-stats {
   grid-area: stats;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 7.5rem;
-  gap: 0.55rem;
-  min-height: 8.5rem;
+  min-height: 17rem;
   padding: 0.4rem 0.55rem;
   border-top: 1px solid var(--cp-border);
   background: var(--cp-surface);
 }
 
 .selection-stats > p {
-  grid-column: 1 / -1;
   margin: 0;
   color: var(--cp-text-muted);
   font-size: 0.72rem;
@@ -957,6 +953,12 @@ tbody tr:hover {
   font-size: 0.65rem;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+}
+
+.selection-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 9rem;
+  gap: 0.55rem;
 }
 
 .monthly-histogram svg {
@@ -978,26 +980,118 @@ tbody tr:hover {
   font-size: 8px;
 }
 
-.decompression-summary {
+.dive-type-summary {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  align-items: center;
   padding-left: 0.55rem;
   border-left: 1px solid var(--cp-border);
 }
 
-.decompression-summary strong {
-  display: block;
-  color: var(--cp-accent);
-  font-size: 2rem;
-  line-height: 1;
+.dive-type-summary h3 {
+  grid-column: 1 / -1;
 }
 
-.decompression-summary span,
-.decompression-summary p {
+.dive-type-summary svg {
+  width: 5.5rem;
+  height: 5.5rem;
+}
+
+.donut-background,
+.donut-segment {
+  fill: none;
+  stroke-width: 12;
+}
+
+.donut-background {
+  stroke: var(--cp-border);
+}
+
+.donut-segment {
+  stroke-linecap: butt;
+}
+
+.donut-decompression {
+  stroke: var(--cp-danger);
+}
+
+.donut-no-decompression {
+  stroke: var(--cp-accent);
+}
+
+.donut-unknown {
+  stroke: var(--cp-border-strong);
+}
+
+.donut-total,
+.donut-label {
+  fill: var(--cp-text);
+}
+
+.donut-total {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.donut-label {
+  fill: var(--cp-text-muted);
+  font-size: 0.5rem;
+}
+
+.donut-legend {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  color: var(--cp-text-muted);
+  font-size: 0.58rem;
+  list-style: none;
+}
+
+.donut-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.donut-key {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.selection-distributions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--cp-border);
+}
+
+.distribution-chart {
+  min-width: 0;
+  padding: 0.25rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface-soft);
+}
+
+.distribution-chart svg {
+  display: block;
+  width: 100%;
+  height: 5.5rem;
+}
+
+.distribution-chart > p {
+  margin: 1.7rem 0;
   color: var(--cp-text-muted);
   font-size: 0.65rem;
+  text-align: center;
 }
 
-.decompression-summary p {
-  margin: 0.55rem 0 0;
+.distribution-bar {
+  fill: var(--cp-accent);
 }
 
 .dive-detail {

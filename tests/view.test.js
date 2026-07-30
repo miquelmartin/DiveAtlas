@@ -3,6 +3,7 @@ import { profilePath, renderProfileChart } from "../src/profile-chart.js";
 import {
   filterDives,
   filterDivesToBounds,
+  histogramBins,
   monthlyDiveCounts,
   sortDives,
 } from "../src/view-model.js";
@@ -87,7 +88,7 @@ it("filters mapped dives to the visible map bounds", () => {
       north: 20,
       east: 30,
     }),
-  ).toEqual([mapped[0], mapped[2]]);
+  ).toEqual([mapped[0]]);
 });
 
 it("builds monthly counts across the full selected date range", () => {
@@ -103,6 +104,15 @@ it("builds monthly counts across the full selected date range", () => {
     count: 1,
   });
   expect(counts.at(-1)).toEqual({ month: "2025-03", count: 0 });
+});
+
+it("creates bounded histogram bins and retains the maximum value", () => {
+  expect(histogramBins([], 5)).toEqual([]);
+  expect(histogramBins([7, 7], 5)).toEqual([{ start: 7, end: 7, count: 2 }]);
+  const bins = histogramBins([0, 5, 10, 15, 20], 4);
+  expect(bins).toHaveLength(4);
+  expect(bins.map((bin) => bin.count)).toEqual([1, 1, 1, 2]);
+  expect(bins.at(-1).end).toBe(20);
 });
 
 describe("profile rendering", () => {

@@ -27,10 +27,9 @@ function numeric(node, localName) {
 }
 
 function directDiveProfiles(root) {
-  const profileData = first(root, "profiledata");
-  if (!profileData) return [];
-  const repetitionGroup = first(profileData, "repetitiongroup");
-  return descendants(repetitionGroup ?? profileData, "dive");
+  return descendants(root, "dive").filter(
+    (candidate) => first(candidate, "informationbeforedive") || first(candidate, "samples"),
+  );
 }
 
 function parseDateTime(information) {
