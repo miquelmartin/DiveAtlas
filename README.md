@@ -32,8 +32,8 @@ npm run check
 
 ## Import workflow
 
-1. Open **Data → Import dives** and choose or drop one or hundreds of `.uddf` files. The selected count and names appear immediately and import starts automatically.
-2. Use **Import coordinates** separately to choose or drop one `.csv`; it merges immediately, adding new sites and replacing matching stored coordinates with the newest row.
+1. Open **Data → Import dives** and use the visible native file picker (mobile or desktop), or drop one or hundreds of `.uddf` files. The selected count and names appear immediately and import starts automatically.
+2. Use the separate native **Import coordinates** picker, or drop one `.csv`; it merges immediately, adding new sites and replacing matching stored coordinates with the newest row.
 3. Dive files are read one at a time, the page yields between files, and cancellation stops before the next file.
 4. Review every file result and any duplicate, invalid, or conflict details. A bad file does not block valid files.
 5. Inspect unmatched sites, then use **View** to filter by minimum depth, duration, date range, or map viewport; click dive markers or rows to compare profiles.
