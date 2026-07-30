@@ -263,6 +263,12 @@ export function renderSelectionStatistics(container, dives, { from = "", to = ""
       values: dives.map((dive) => dive.maxCns).filter(Number.isFinite),
       selectedDiveCount: dives.length,
     },
+    {
+      title: "Maximum GF99",
+      unit: "%",
+      values: dives.map((dive) => dive.maxGf99).filter(Number.isFinite),
+      selectedDiveCount: dives.length,
+    },
   ].forEach((definition) => distributions.append(renderDistribution(definition)));
   container.append(overview, distributions);
 }

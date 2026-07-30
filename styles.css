@@ -971,7 +971,7 @@ tbody tr:hover {
 
 .selection-overview {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 9rem;
+  grid-template-columns: minmax(7.5rem, 0.8fr) minmax(12.5rem, 1.2fr);
   gap: 0.55rem;
 }
 
@@ -996,7 +996,7 @@ tbody tr:hover {
 
 .dive-type-summary {
   display: grid;
-  grid-template-columns: 5.5rem minmax(0, 1fr);
+  grid-template-columns: 4.5rem minmax(6.5rem, 1fr);
   align-items: center;
   padding-left: 0.55rem;
   border-left: 1px solid var(--cp-border);
@@ -1007,8 +1007,8 @@ tbody tr:hover {
 }
 
 .dive-type-summary svg {
-  width: 5.5rem;
-  height: 5.5rem;
+  width: 4.5rem;
+  height: 4.5rem;
 }
 
 .donut-background,
@@ -1058,7 +1058,7 @@ tbody tr:hover {
   margin: 0;
   padding: 0;
   color: var(--cp-text-muted);
-  font-size: 0.58rem;
+  font-size: 0.62rem;
   list-style: none;
 }
 
@@ -1088,7 +1088,7 @@ tbody tr:hover {
   min-width: 0;
   padding: 0.25rem;
   border: 1px solid var(--cp-border);
-  background: var(--cp-surface-soft);
+  background: var(--cp-surface);
 }
 
 .distribution-chart svg {
@@ -1201,5 +1201,16 @@ tbody tr:hover {
 
   main {
     padding: 0.3rem;
+  }
+
+  .selection-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .dive-type-summary {
+    padding-top: 0.4rem;
+    padding-left: 0;
+    border-top: 1px solid var(--cp-border);
+    border-left: 0;
   }
 }

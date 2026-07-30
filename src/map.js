@@ -56,12 +56,25 @@ export function initializeMap(element, callbacks = {}) {
       ? L.markerClusterGroup({
           showCoverageOnHover: false,
           maxClusterRadius: 28,
-          disableClusteringAtZoom: 11,
-          spiderfyOnMaxZoom: true,
+          spiderfyDistanceMultiplier: 1.4,
+          spiderfyOnMaxZoom: false,
+          zoomToBoundsOnClick: false,
           iconCreateFunction: clusterIcon,
         })
       : L.layerGroup()
   ).addTo(map);
+  const expandCluster = ({ layer: cluster }) => {
+    const markers = cluster.getAllChildMarkers();
+    const origin = markers[0]?.getLatLng();
+    const sharesCoordinates =
+      markers.length > 1 && markers.every((marker) => marker.getLatLng().equals(origin));
+    if (sharesCoordinates || map.getZoom() === map.getMaxZoom()) {
+      cluster.spiderfy();
+    } else {
+      cluster.zoomToBounds();
+    }
+  };
+  markerLayer.on?.("clusterclick clusterkeypress", expandCluster);
   map.on("moveend", () => {
     if (programmaticMove) return;
     const bounds = map.getBounds();

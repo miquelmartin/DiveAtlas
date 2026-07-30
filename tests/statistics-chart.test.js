@@ -14,6 +14,7 @@ describe("selected dive statistics", () => {
           durationSeconds: 3600,
           minTemperature: 18,
           maxCns: 12,
+          maxGf99: 70,
         },
         {
           dateTime: "2025-02-03T10:00:00Z",
@@ -22,6 +23,7 @@ describe("selected dive statistics", () => {
           durationSeconds: 2400,
           minTemperature: 20,
           maxCns: 5,
+          maxGf99: 55,
         },
         {
           dateTime: "2025-02-10T10:00:00Z",
@@ -30,6 +32,7 @@ describe("selected dive statistics", () => {
           durationSeconds: null,
           minTemperature: null,
           maxCns: null,
+          maxGf99: null,
         },
       ],
       { from: "2025-01-01", to: "2025-02-28" },
@@ -42,7 +45,13 @@ describe("selected dive statistics", () => {
     expect(container.querySelectorAll(".donut-segment")).toHaveLength(3);
     expect(container.querySelectorAll(".monthly-bar")).toHaveLength(2);
     expect([...container.querySelectorAll(".distribution-chart h3")].map((item) => item.textContent))
-      .toEqual(["Maximum depth", "Duration", "Minimum temperature", "Maximum CNS"]);
+      .toEqual([
+        "Maximum depth",
+        "Duration",
+        "Minimum temperature",
+        "Maximum CNS",
+        "Maximum GF99",
+      ]);
     expect(container.querySelectorAll(".distribution-bar").length).toBeGreaterThan(0);
     expect(
       container.querySelector(".distribution-chart svg").getAttribute("aria-label"),
@@ -53,6 +62,6 @@ describe("selected dive statistics", () => {
     const container = document.createElement("div");
     renderSelectionStatistics(container, [{ dateTime: "2025-01-01", decoDive: null }]);
     expect(container.querySelector(".donut-total").textContent).toBe("1");
-    expect(container.querySelectorAll(".distribution-chart > p")).toHaveLength(4);
+    expect(container.querySelectorAll(".distribution-chart > p")).toHaveLength(5);
   });
 });
