@@ -85,6 +85,25 @@ describe("IndexedDB persistence", () => {
     expect(await getRecord("dives", second.dive.id, database)).toEqual(second.dive);
   });
 
+  it("reprocesses import records created before the current import format", async () => {
+    const database = await testDatabase();
+    const { dive, profile } = records();
+    await addDive(dive, profile, "legacy-source", database);
+    const connection = await database;
+    const transaction = connection.transaction("imports", "readwrite");
+    transaction.objectStore("imports").put({
+      recordId: "source:legacy-source",
+      sourceHash: "legacy-source",
+      diveIds: [dive.id],
+      status: "complete",
+    });
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+    });
+    expect(await hasSourceHash("legacy-source", database)).toBe(false);
+  });
+
   it("never overwrites a conflicting mapping during merge", async () => {
     const database = await testDatabase();
     const first = {
@@ -147,7 +166,7 @@ describe("IndexedDB persistence", () => {
     expect(await getRecord("dives", migratedId, connection)).toEqual({
       ...dive,
       id: migratedId,
-      decoDive: null,
+      decoDive: false,
     });
 
     expect(await getRecord("profiles", migratedId, connection)).toEqual({
@@ -159,7 +178,7 @@ describe("IndexedDB persistence", () => {
     ]);
   });
 
-  it("marks legacy decompression status unknown when source provenance is absent", async () => {
+  it("uses DiveViz decompression inference when migrating stored profiles", async () => {
     const name = `diveatlas-v2-${crypto.randomUUID()}`;
     const request = indexedDB.open(name, 2);
     const legacy = await new Promise((resolve, reject) => {
@@ -193,7 +212,46 @@ describe("IndexedDB persistence", () => {
     databases.push({ name, connection });
     expect(await getRecord("dives", dive.id, connection)).toEqual({
       ...dive,
-      decoDive: null,
+      decoDive: true,
+    });
+  });
+
+  it("recalculates decompression status when migrating v3 data", async () => {
+    const name = `diveatlas-v3-${crypto.randomUUID()}`;
+    const request = indexedDB.open(name, 3);
+    const legacy = await new Promise((resolve, reject) => {
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        const dives = database.createObjectStore("dives", { keyPath: "id" });
+        dives.createIndex("dateTime", "dateTime");
+        dives.createIndex("mappingKey", "mappingKey");
+        database.createObjectStore("profiles", { keyPath: "diveId" });
+        database.createObjectStore("mappings", { keyPath: "key" });
+        const imports = database.createObjectStore("imports", { keyPath: "recordId" });
+        imports.createIndex("sourceHash", "sourceHash", { unique: true });
+        imports.createIndex("diveIds", "diveIds", { multiEntry: true });
+        database.createObjectStore("settings", { keyPath: "key" });
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const { dive, profile } = records("meta|v3");
+    dive.decoDive = null;
+    profile.samples.push({ time: 60, depth: 20, nodeco: 0 });
+    const transaction = legacy.transaction(["dives", "profiles"], "readwrite");
+    transaction.objectStore("dives").put(dive);
+    transaction.objectStore("profiles").put(profile);
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+    });
+    legacy.close();
+
+    const connection = openDatabase(indexedDB, name);
+    databases.push({ name, connection });
+    expect(await getRecord("dives", dive.id, connection)).toEqual({
+      ...dive,
+      decoDive: true,
     });
   });
 

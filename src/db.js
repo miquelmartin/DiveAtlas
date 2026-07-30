@@ -1,4 +1,4 @@
-import { DB_NAME, DB_VERSION } from "./config.js";
+import { DB_NAME, DB_VERSION, DIVE_IMPORT_VERSION } from "./config.js";
 import {
   canonicalizeLibraryIdentities,
   deriveDecoDive,
@@ -98,6 +98,32 @@ function migrateV2(transaction) {
   };
 }
 
+function migrateV3(transaction) {
+  const dives = transaction.objectStore("dives");
+  const profiles = transaction.objectStore("profiles");
+  const diveRequest = dives.getAll();
+  const profileRequest = profiles.getAll();
+  const loaded = {};
+  const update = () => {
+    if (!loaded.dives || !loaded.profiles) return;
+    const profileById = new Map(loaded.profiles.map((profile) => [profile.diveId, profile]));
+    loaded.dives.forEach((dive) => {
+      dives.put({
+        ...dive,
+        decoDive: deriveDecoDive(profileById.get(dive.id)?.samples),
+      });
+    });
+  };
+  diveRequest.onsuccess = () => {
+    loaded.dives = diveRequest.result;
+    update();
+  };
+  profileRequest.onsuccess = () => {
+    loaded.profiles = profileRequest.result;
+    update();
+  };
+}
+
 export function openDatabase(factory = globalThis.indexedDB, name = DB_NAME) {
   const useDefaultConnection = factory === globalThis.indexedDB && name === DB_NAME;
   if (useDefaultConnection && defaultConnection) return defaultConnection;
@@ -107,6 +133,7 @@ export function openDatabase(factory = globalThis.indexedDB, name = DB_NAME) {
       if (event.oldVersion === 0) createSchema(request.result);
       if (event.oldVersion === 1) migrateV1(request.transaction);
       if (event.oldVersion === 2) migrateV2(request.transaction);
+      if (event.oldVersion === 3) migrateV3(request.transaction);
     };
     request.onsuccess = () => {
       request.result.onversionchange = () => request.result.close();
@@ -140,7 +167,10 @@ export async function hasSourceHash(sourceHash, databasePromise = openDatabase()
   const record = await requestResult(
     database.transaction("imports").objectStore("imports").get(`source:${sourceHash}`),
   );
-  return record?.status === "complete";
+  return (
+    record?.status === "complete" &&
+    record.importVersion === DIVE_IMPORT_VERSION
+  );
 }
 
 export async function addDive(
@@ -179,6 +209,7 @@ export async function addDiveSource(
     diveIds,
     sourceName,
     importedAt: new Date().toISOString(),
+    importVersion: DIVE_IMPORT_VERSION,
     status: complete ? "complete" : "conflict",
   });
   await transactionDone(transaction);
@@ -235,6 +266,7 @@ export async function importDiveSource(
     diveIds: records.map((record) => record.dive.id),
     sourceName,
     importedAt: new Date().toISOString(),
+    importVersion: DIVE_IMPORT_VERSION,
     status: sourceHasConflicts || conflicts.length ? "conflict" : "complete",
   });
   await done;

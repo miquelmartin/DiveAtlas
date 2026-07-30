@@ -1,6 +1,7 @@
 export const APP_VERSION = "1.1.0";
 export const DB_NAME = "diveatlas";
-export const DB_VERSION = 3;
+export const DB_VERSION = 4;
+export const DIVE_IMPORT_VERSION = 2;
 export const BACKUP_FORMAT = "diveatlas-backup";
 export const BACKUP_VERSION = 1;
 

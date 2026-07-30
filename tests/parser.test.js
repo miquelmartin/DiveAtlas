@@ -29,7 +29,7 @@ describe("UDDF parser", () => {
     expect(dive.decompression).toMatchObject({ model: "buehlmann", gfLow: 40, gfHigh: 85 });
     expect(dive.maxDepth).toBe(24.2);
     expect(dive.durationSeconds).toBe(180);
-    expect(dive.decoDive).toBe(false);
+    expect(dive.decoDive).toBe(true);
     expect(profile.samples).toHaveLength(4);
     expect(profile.samples[0].temperature).toBeCloseTo(20);
     expect(profile.samples[2].nodeco).toBe(0);
@@ -73,7 +73,7 @@ describe("UDDF parser", () => {
     expect(profile.samples).toEqual([]);
   });
 
-  it("distinguishes explicit decompression from missing no-decompression data", async () => {
+  it("matches DiveViz Shearwater decompression inference", async () => {
     const source = await fixture("representative.uddf");
     const missing = source.replaceAll(/<nodecotime>[^<]+<\/nodecotime>/g, "");
     const explicitDeco = source.replace(
@@ -82,10 +82,39 @@ describe("UDDF parser", () => {
     );
     const missingRecord = parseUddf(missing)[0];
     const explicitRecord = parseUddf(explicitDeco)[0];
-    expect(missingRecord.dive.decoDive).toBeNull();
+    expect(missingRecord.dive.decoDive).toBe(true);
     expect(explicitRecord.dive.decoDive).toBe(true);
     expect(stableStringify(normalizedDivePayload(missingRecord.dive, missingRecord.profile))).not
       .toBe(stableStringify(normalizedDivePayload(explicitRecord.dive, explicitRecord.profile)));
+  });
+
+  it("finds metadata-only dive records outside profiledata", async () => {
+    const source = (await fixture("representative.uddf"))
+      .replace("<profiledata>", "<logbook>")
+      .replace("</profiledata>", "</logbook>")
+      .replace(/        <samples>[\s\S]*?        <\/samples>\r?\n/, "");
+    const [{ dive, profile }] = parseUddf(source, "logbook-only.uddf");
+    expect(dive).toMatchObject({ number: 42, sampleCount: 0 });
+    expect(profile.samples).toEqual([]);
+  });
+
+  it("finds metadata-only dives alongside profiledata dives", async () => {
+    const source = (await fixture("representative.uddf")).replace(
+      "</uddf>",
+      `<logbook>
+        <dive id="metadata-only">
+          <informationbeforedive>
+            <divenumber>45</divenumber>
+            <date>2025-06-18</date>
+            <time>10:00:00</time>
+          </informationbeforedive>
+        </dive>
+      </logbook>
+    </uddf>`,
+    );
+    const records = parseUddf(source, "mixed-records.uddf");
+    expect(records.map(({ dive }) => dive.number)).toEqual([42, 45]);
+    expect(records[1].profile.samples).toEqual([]);
   });
 
   it("builds a stable metadata identity when an explicit ID is absent", () => {

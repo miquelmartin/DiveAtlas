@@ -11,11 +11,11 @@ import { importSources } from "./importer.js";
 import { enrichMappingCountry, UNASSIGNED_COUNTRY } from "./country.js";
 import { initializeMap, renderMap } from "./map.js";
 import { renderProfileChart } from "./profile-chart.js";
+import { renderSelectionStatistics } from "./statistics-chart.js";
 import { downloadJson, formatBytes, normalizeKey } from "./utils.js";
 import {
   filterDives,
   filterDivesToBounds,
-  monthlyDiveCounts,
   sortDives,
 } from "./view-model.js";
 
@@ -486,83 +486,8 @@ function selectedDateExtent() {
 }
 
 function renderSelectionStats() {
-  const container = elements["selection-stats"];
   const dives = state.dives.filter((dive) => state.selectedViewDives.has(dive.id));
-  container.replaceChildren();
-  if (!dives.length) {
-    const empty = document.createElement("p");
-    empty.textContent = "Select dives to see statistics.";
-    container.append(empty);
-    return;
-  }
-
-  const { from, to } = selectedDateExtent();
-  const months = monthlyDiveCounts(dives, from, to);
-  const histogram = document.createElement("section");
-  histogram.className = "monthly-histogram";
-  const histogramHeading = document.createElement("h3");
-  histogramHeading.textContent = "Dives per month";
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 480 120");
-  svg.setAttribute("role", "img");
-  svg.setAttribute(
-    "aria-label",
-    `Monthly histogram for ${dives.length} selected dive${dives.length === 1 ? "" : "s"} from ${from || "first dive"} to ${to || "last dive"}`,
-  );
-  const maxCount = months.reduce((maximum, item) => Math.max(maximum, item.count), 1);
-  const plotLeft = 28;
-  const plotRight = 472;
-  const plotTop = 8;
-  const plotBottom = 88;
-  const slotWidth = (plotRight - plotLeft) / Math.max(1, months.length);
-  const labelStep = Math.max(1, Math.ceil(months.length / 6));
-  months.forEach((item, index) => {
-    const height = (item.count / maxCount) * (plotBottom - plotTop);
-    const bar = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    bar.setAttribute("x", plotLeft + index * slotWidth + Math.min(1.5, slotWidth * 0.1));
-    bar.setAttribute("y", plotBottom - height);
-    bar.setAttribute("width", Math.max(1, slotWidth - Math.min(3, slotWidth * 0.2)));
-    bar.setAttribute("height", height);
-    bar.setAttribute("class", "monthly-bar");
-    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
-    title.textContent = `${item.month}: ${item.count} dive${item.count === 1 ? "" : "s"}`;
-    bar.append(title);
-    svg.append(bar);
-    if (index % labelStep === 0 || index === months.length - 1) {
-      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      label.setAttribute("x", plotLeft + (index + 0.5) * slotWidth);
-      label.setAttribute("y", 106);
-      label.setAttribute("text-anchor", "middle");
-      label.setAttribute("class", "selection-axis-label");
-      label.textContent = item.month;
-      svg.append(label);
-    }
-  });
-  const baseline = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  baseline.setAttribute("x1", plotLeft);
-  baseline.setAttribute("x2", plotRight);
-  baseline.setAttribute("y1", plotBottom);
-  baseline.setAttribute("y2", plotBottom);
-  baseline.setAttribute("class", "selection-axis");
-  svg.append(baseline);
-  histogram.append(histogramHeading, svg);
-
-  const decompression = document.createElement("section");
-  decompression.className = "decompression-summary";
-  const decompressionHeading = document.createElement("h3");
-  decompressionHeading.textContent = "Decompression dives";
-  const decoCount = dives.filter((dive) => dive.decoDive === true).length;
-  const noDecoCount = dives.filter((dive) => dive.decoDive === false).length;
-  const unknownCount = dives.length - decoCount - noDecoCount;
-  const count = document.createElement("strong");
-  count.className = "deco-count";
-  count.textContent = String(decoCount);
-  const total = document.createElement("span");
-  total.textContent = `of ${dives.length} selected`;
-  const breakdown = document.createElement("p");
-  breakdown.textContent = `${noDecoCount} no-decompression · ${unknownCount} unknown`;
-  decompression.append(decompressionHeading, count, total, breakdown);
-  container.append(histogram, decompression);
+  renderSelectionStatistics(elements["selection-stats"], dives, selectedDateExtent());
 }
 
 async function renderSelectedDiveDetails() {
@@ -642,10 +567,9 @@ function currentMapDives() {
 
 function currentListDives() {
   const baseDives = currentViewDives();
-  if (state.mapBounds && !state.showOutsideMap) {
-    return filterDivesToBounds(baseDives, mappingLookup(), state.mapBounds);
-  }
-  return baseDives;
+  return state.showOutsideMap
+    ? baseDives
+    : filterDivesToBounds(baseDives, mappingLookup(), state.mapBounds);
 }
 
 async function handleMapBoundsChange(bounds) {
@@ -663,7 +587,7 @@ function renderView({ updateMap = true, fitMap = false } = {}) {
   const baseDives = currentViewDives();
   const lookup = mappingLookup();
   const divesInMap = filterDivesToBounds(baseDives, lookup, state.mapBounds);
-  const showOutside = Boolean(state.mapBounds && state.showOutsideMap);
+  const showOutside = state.showOutsideMap;
   const dives = showOutside ? baseDives : divesInMap;
   const divesInMapIds = new Set(divesInMap.map((dive) => dive.id));
   const outsideCount = baseDives.length - divesInMap.length;
@@ -671,8 +595,12 @@ function renderView({ updateMap = true, fitMap = false } = {}) {
     ? `${divesInMap.length} of ${baseDives.length} dives in map view${
         showOutside ? " · showing all" : ""
       }`
-    : `${dives.length} dive${dives.length === 1 ? "" : "s"}`;
-  elements["show-outside-map"].disabled = !state.mapBounds || outsideCount === 0;
+    : outsideCount
+      ? `${divesInMap.length} of ${baseDives.length} mapped dives${
+          showOutside ? " · showing all" : ""
+        }`
+      : `${dives.length} dive${dives.length === 1 ? "" : "s"}`;
+  elements["show-outside-map"].disabled = outsideCount === 0;
   elements["show-outside-map"].checked = showOutside;
   elements["select-map-dives"].disabled = currentMapDives().length === 0;
   elements["select-list-dives"].disabled = dives.length === 0;

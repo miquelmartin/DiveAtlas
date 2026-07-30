@@ -41,10 +41,10 @@ export function sortDives(dives, field = "number", direction = "desc") {
 }
 
 export function filterDivesToBounds(dives, mappings, bounds) {
-  if (!bounds) return dives;
   return dives.filter((dive) => {
     const mapping = mappings.get(dive.mappingKey);
-    if (!mapping) return true;
+    if (!mapping) return false;
+    if (!bounds) return true;
     if (mapping.latitude < bounds.south || mapping.latitude > bounds.north) {
       return false;
     }
@@ -78,4 +78,27 @@ export function monthlyDiveCounts(dives, from, to) {
     const key = `${year}-${String(month).padStart(2, "0")}`;
     return { month: key, count: counts.get(key) ?? 0 };
   });
+}
+
+export function histogramBins(values, requestedBins = 10) {
+  const finiteValues = values.filter(Number.isFinite);
+  if (!finiteValues.length) return [];
+  const minimum = Math.min(...finiteValues);
+  const maximum = Math.max(...finiteValues);
+  if (minimum === maximum) {
+    return [{ start: minimum, end: maximum, count: finiteValues.length }];
+  }
+
+  const binCount = Math.max(1, Math.min(requestedBins, finiteValues.length));
+  const width = (maximum - minimum) / binCount;
+  const bins = Array.from({ length: binCount }, (_, index) => ({
+    start: minimum + index * width,
+    end: index === binCount - 1 ? maximum : minimum + (index + 1) * width,
+    count: 0,
+  }));
+  finiteValues.forEach((value) => {
+    const index = Math.min(Math.floor((value - minimum) / width), binCount - 1);
+    bins[index].count += 1;
+  });
+  return bins;
 }

@@ -106,12 +106,23 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     .replace("<divenumber>42</divenumber>", "<divenumber>44</divenumber>")
     .replace("<datetime>2025-06-15T09:30:00Z</datetime>", "<datetime>2025-06-17T09:30:00Z</datetime>")
     .replace("<name>Blue Wall</name>", "<name>Far Reef</name>");
+  const profileless = first
+    .replace('id="synthetic-dive-42"', 'id="profileless"')
+    .replace("<divenumber>42</divenumber>", "<divenumber>45</divenumber>")
+    .replace("<datetime>2025-06-15T09:30:00Z</datetime>", "<datetime>2025-06-18T09:30:00Z</datetime>")
+    .replace("<name>Blue Wall</name>", "<name>Unmapped Cove</name>")
+    .replace(/        <samples>[\s\S]*?        <\/samples>\r?\n/, "");
   await page.locator("#dive-files").setInputFiles([
     { name: "first.uddf", mimeType: "application/xml", buffer: Buffer.from(first) },
     { name: "second.uddf", mimeType: "application/xml", buffer: Buffer.from(second) },
     { name: "far.uddf", mimeType: "application/xml", buffer: Buffer.from(far) },
+    {
+      name: "profileless.uddf",
+      mimeType: "application/xml",
+      buffer: Buffer.from(profileless),
+    },
   ]);
-  await expect(page.locator("#dive-count")).toHaveText("3");
+  await expect(page.locator("#dive-count")).toHaveText("4");
 
   await page.locator("#coordinate-file").setInputFiles({
     name: "map.csv",
@@ -132,6 +143,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator(".dive-map-marker")).toHaveText("");
   await expect(page.locator('.leaflet-tile[src*="server.arcgisonline.com"]').first()).toBeAttached();
   await expect(page.locator(".dive-row")).toHaveCount(3);
+  await expect(page.locator("#view-dive-list")).not.toContainText("Unmapped Cove");
   await expect(page.locator(".country-group")).toHaveCount(0);
   await expect(page.locator("#min-depth")).toHaveValue("0");
   await expect(page.locator("#min-duration")).toHaveValue("0");
@@ -152,14 +164,29 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   );
   await expect(page.locator("#view-dive-list")).not.toContainText("UNKNOWN");
   const showOutsideMap = page.getByRole("checkbox", { name: "Show dives outside the map" });
-  await expect(page.locator(".dive-list-pane #show-outside-map")).toHaveCount(1);
-
   const selectionActions = page.getByRole("group", { name: "Select dives" });
+  await expect(page.locator(".dive-list-pane #show-outside-map")).toHaveCount(1);
+  await expect(showOutsideMap).toBeEnabled();
+  await showOutsideMap.check();
+  await expect(page.locator(".dive-row")).toHaveCount(4);
+  await page.getByRole("button", { name: /Dive 45,/ }).click();
+  await expect(page.locator("#profile-chart")).toHaveText(
+    "No profile samples are available for the selected dive.",
+  );
+  await expect(page.locator("#dive-detail")).toContainText("Unmapped Cove");
+  await selectionActions.getByRole("button", { name: "None" }).click();
+  await showOutsideMap.uncheck();
+
   await selectionActions.getByRole("button", { name: "All" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(3);
   await expect(page.locator("#dive-detail")).toContainText("3 dives selected");
   await expect(page.locator(".monthly-bar")).toHaveCount(1);
-  await expect(page.locator(".deco-count")).toHaveText("1");
+  await expect(page.locator(".donut-total")).toHaveText("3");
+  await expect(page.locator(".dive-type-summary svg")).toHaveAttribute(
+    "aria-label",
+    "3 decompression, 0 no-decompression, and 0 unknown dives",
+  );
+  await expect(page.locator(".distribution-chart")).toHaveCount(4);
   await expect(page.locator(".profile-legend")).toHaveCount(0);
   await selectionActions.getByRole("button", { name: "None" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(0);
@@ -219,17 +246,17 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   );
 
   await farMarker.dblclick();
-  await expect(page.locator("#view-result-count")).toContainText("of 3 dives in map view");
+  await expect(page.locator("#view-result-count")).toContainText("of 4 dives in map view");
   const visibleDiveCount = await page.locator(".dive-row").count();
   expect(visibleDiveCount).toBeLessThan(3);
   await showOutsideMap.check();
-  await expect(page.locator(".dive-row")).toHaveCount(3);
-  await expect(page.locator(".dive-row.is-outside-map")).toHaveCount(3 - visibleDiveCount);
+  await expect(page.locator(".dive-row")).toHaveCount(4);
+  await expect(page.locator(".dive-row.is-outside-map")).toHaveCount(4 - visibleDiveCount);
   await expect(showOutsideMap).toBeChecked();
   await expect(page.getByRole("button", { name: "Show all map" })).toHaveCount(0);
   await page.locator("#clear-filters").click();
-  await expect(page.locator("#view-result-count")).toHaveText("3 dives");
-  await expect(showOutsideMap).toBeDisabled();
+  await expect(page.locator("#view-result-count")).toHaveText("3 of 4 mapped dives");
+  await expect(showOutsideMap).toBeEnabled();
 
   await page.locator("#date-range-end").evaluate((input) => {
     input.value = "1";
@@ -239,18 +266,27 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator(".dive-row")).toHaveCount(2);
   await expect(page.locator("#date-range-label")).toContainText("2025-06-16");
   await expect(page.locator("#date-range-track")).toHaveCSS("--range-start", "0%");
-  await expect(page.locator("#date-range-track")).toHaveCSS("--range-end", "50%");
+  await expect(page.locator("#date-range-track")).toHaveCSS(
+    "--range-end",
+    "33.33333333333333%",
+  );
   await page.locator("#date-range-start").evaluate((input) => {
     input.value = "1";
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  await expect(page.locator("#date-range-track")).toHaveCSS("--range-start", "50%");
-  await expect(page.locator("#date-range-track")).toHaveCSS("--range-end", "50%");
+  await expect(page.locator("#date-range-track")).toHaveCSS(
+    "--range-start",
+    "33.33333333333333%",
+  );
+  await expect(page.locator("#date-range-track")).toHaveCSS(
+    "--range-end",
+    "33.33333333333333%",
+  );
 
   await page.locator("#min-depth").fill("25");
   await expect(page.locator("#view-result-count")).toHaveText("0 dives");
   await page.locator("#clear-filters").click();
-  await expect(page.locator("#view-result-count")).toHaveText("3 dives");
+  await expect(page.locator("#view-result-count")).toHaveText("3 of 4 mapped dives");
   await expect(page.locator("#min-depth")).toHaveValue("0");
   await expect(page.locator("#min-duration")).toHaveValue("0");
 

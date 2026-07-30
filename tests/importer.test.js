@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { getAll, openDatabase } from "../src/db.js";
 import { importSources } from "../src/importer.js";
+import { sha256Text } from "../src/utils.js";
 
 const uddf = await readFile(join(process.cwd(), "tests", "fixtures", "representative.uddf"), "utf8");
 const csv = await readFile(join(process.cwd(), "tests", "fixtures", "mappings.csv"), "utf8");
@@ -73,6 +74,48 @@ describe("incremental import flow", () => {
     ]);
   });
 
+  it("reprocesses legacy source hashes to recover previously omitted profileless dives", async () => {
+    const database = await testDatabase();
+    await importSources([source("original.uddf", uddf)], {
+      databasePromise: database,
+      yieldToMain: async () => {},
+    });
+    const original = diveBlock(uddf);
+    const profileless = original
+      .replace('id="synthetic-dive-42"', 'id="profileless"')
+      .replace("<divenumber>42</divenumber>", "<divenumber>45</divenumber>")
+      .replace("<datetime>2025-06-15T09:30:00Z</datetime>", "<datetime>2025-06-18T09:30:00Z</datetime>")
+      .replace(/        <samples>[\s\S]*?        <\/samples>\r?\n/, "");
+    const combined = uddf.replace(original, `${original}\n${profileless}`);
+    const sourceHash = await sha256Text(combined);
+    const connection = await database;
+    const existingDiveId = (await getAll("dives", database))[0].id;
+    const transaction = connection.transaction("imports", "readwrite");
+    transaction.objectStore("imports").put({
+      recordId: `source:${sourceHash}`,
+      sourceHash,
+      diveIds: [existingDiveId],
+      sourceName: "combined.uddf",
+      status: "complete",
+    });
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+    });
+
+    const outcome = await importSources([source("combined.uddf", combined)], {
+      databasePromise: database,
+      yieldToMain: async () => {},
+    });
+    expect(outcome.results[0].message).toContain("1 dive(s) imported");
+    expect(await getAll("dives", database)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ number: 42, sampleCount: 4 }),
+        expect.objectContaining({ number: 45, sampleCount: 0 }),
+      ]),
+    );
+  });
+
   it("skips exact sources and reports changed dives with the same stable identity", async () => {
     const database = await testDatabase();
     await importSources([source("first.uddf", uddf)], {
@@ -94,7 +137,7 @@ describe("incremental import flow", () => {
     expect((await getAll("dives", database))[0].maxDepth).toBe(24.2);
   });
 
-  it("reports explicit decompression data that conflicts with an unknown record", async () => {
+  it("reports explicit NDL provenance that conflicts with an inferred decompression record", async () => {
     const database = await testDatabase();
     const missing = uddf.replaceAll(/<nodecotime>[^<]+<\/nodecotime>/g, "");
     const explicit = missing.replace(
@@ -111,7 +154,7 @@ describe("incremental import flow", () => {
     });
     expect(outcome.results[0].message).toContain("1 conflict");
     expect(await getAll("dives", database)).toEqual([
-      expect.objectContaining({ decoDive: null }),
+      expect.objectContaining({ decoDive: true }),
     ]);
   });
 
