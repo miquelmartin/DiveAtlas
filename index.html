@@ -246,7 +246,12 @@
           <section class="dashboard-pane dive-list-pane" aria-label="Filtered dives">
             <div class="dive-list-controls">
               <label><input id="show-outside-map" type="checkbox" disabled> Show dives outside the map</label>
-              <button id="select-map-dives" type="button" disabled>Select all dives in map</button>
+              <div class="dive-selection-actions" role="group" aria-label="Select dives">
+                <span>Select</span>
+                <button id="select-map-dives" type="button" disabled>Map</button>
+                <button id="select-list-dives" type="button" disabled>All</button>
+                <button id="clear-view-dives" type="button" disabled>None</button>
+              </div>
             </div>
             <div class="dive-list-header" aria-label="Sort dives">
               <button type="button" data-sort="number" data-label="#">#</button>

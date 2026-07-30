@@ -154,16 +154,19 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   const showOutsideMap = page.getByRole("checkbox", { name: "Show dives outside the map" });
   await expect(page.locator(".dive-list-pane #show-outside-map")).toHaveCount(1);
 
-  await page.getByRole("button", { name: "Select all dives in map" }).click();
+  const selectionActions = page.getByRole("group", { name: "Select dives" });
+  await selectionActions.getByRole("button", { name: "All" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(3);
   await expect(page.locator("#dive-detail")).toContainText("3 dives selected");
   await expect(page.locator(".monthly-bar")).toHaveCount(1);
   await expect(page.locator(".deco-count")).toHaveText("1");
   await expect(page.locator(".profile-legend")).toHaveCount(0);
-  for (let index = 0; index < 3; index += 1) {
-    await page.locator(".dive-row.is-selected").first().click();
-  }
+  await selectionActions.getByRole("button", { name: "None" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(0);
+  await expect(selectionActions.getByRole("button", { name: "None" })).toBeDisabled();
+  await selectionActions.getByRole("button", { name: "Map" }).click();
+  await expect(page.locator(".dive-row.is-selected")).toHaveCount(3);
+  await selectionActions.getByRole("button", { name: "None" }).click();
   const [mapBounds, markerBounds] = await Promise.all([
     page.locator("#map").boundingBox(),
     page.locator(".dive-map-marker").boundingBox(),
