@@ -192,6 +192,68 @@ describe("profile rendering", () => {
     );
   });
 
+  it("shows only the profile point nearest the pointer", () => {
+    const container = document.createElement("div");
+    container.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 720,
+      height: 280,
+    });
+    renderProfileChart(container, [
+      {
+        label: "Dive 1 · Deep",
+        number: 1,
+        location: "Example Island",
+        site: "Deep",
+        samples,
+      },
+      {
+        label: "Dive 2 · Shallow",
+        number: 2,
+        location: "Example Island",
+        site: "Shallow",
+        samples: samples.map((sample) => ({ ...sample, depth: sample.depth * 0.5 })),
+      },
+    ]);
+    const svg = container.querySelector("svg");
+    svg.getBoundingClientRect = container.getBoundingClientRect;
+    svg.dispatchEvent(new PointerEvent("pointermove", { clientX: 360, clientY: 140 }));
+    expect(container.querySelectorAll(".chart-tooltip > span")).toHaveLength(1);
+    expect(container.querySelector(".chart-tooltip").textContent).toContain("Dive 2");
+    expect(container.querySelector(".chart-tooltip").textContent).not.toContain("Dive 1");
+    expect(container.querySelector(".profile-hover-point").hasAttribute("hidden")).toBe(false);
+  });
+
+  it("finds the spatially nearest point beyond adjacent timestamps", () => {
+    const container = document.createElement("div");
+    container.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 720,
+      height: 280,
+    });
+    renderProfileChart(container, [
+      {
+        label: "Dive 9 · Wall",
+        number: 9,
+        location: "Example Island",
+        site: "Wall",
+        samples: [
+          ...Array.from({ length: 5 }, (_, time) => ({ time, depth: 100 })),
+          { time: 10, depth: 0 },
+          { time: 1000, depth: 100 },
+        ],
+      },
+    ]);
+    const svg = container.querySelector("svg");
+    svg.getBoundingClientRect = container.getBoundingClientRect;
+    svg.dispatchEvent(new PointerEvent("pointermove", { clientX: 42, clientY: 42 }));
+    expect(container.querySelector(".chart-tooltip").textContent).toContain(
+      "0.0 m · 0.2 min",
+    );
+  });
+
   it("reports unavailable profiles without hiding profiles that can be drawn", () => {
     const container = document.createElement("div");
     renderProfileChart(container, [
