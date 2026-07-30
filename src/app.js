@@ -761,8 +761,8 @@ function registerEvents() {
     }),
   );
   elements["clear-filters"].addEventListener("click", () => {
-    elements["min-depth"].value = "";
-    elements["min-duration"].value = "";
+    elements["min-depth"].value = "0";
+    elements["min-duration"].value = "0";
     elements["date-range-start"].value = 0;
     elements["date-range-end"].value = Math.max(0, state.dateValues.length - 1);
     updateDateRangeLabel();

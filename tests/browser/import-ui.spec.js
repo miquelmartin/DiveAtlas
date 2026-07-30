@@ -111,6 +111,8 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator('.leaflet-tile[src*="server.arcgisonline.com"]').first()).toBeAttached();
   await expect(page.locator(".dive-row")).toHaveCount(3);
   await expect(page.locator(".country-group")).toHaveCount(0);
+  await expect(page.locator("#min-depth")).toHaveValue("0");
+  await expect(page.locator("#min-duration")).toHaveValue("0");
   await expect(page.locator(".dive-row").first().locator(".dive-stats")).toHaveText(
     "2025-06-17 · Japan · 24.2 m · 3 min",
   );
@@ -180,6 +182,8 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator("#view-result-count")).toHaveText("0 dives");
   await page.locator("#clear-filters").click();
   await expect(page.locator("#view-result-count")).toHaveText("3 dives");
+  await expect(page.locator("#min-depth")).toHaveValue("0");
+  await expect(page.locator("#min-duration")).toHaveValue("0");
 
   await page.locator('[data-sort="country"]').click();
   await expect(page.locator('[data-sort="country"]')).toHaveAttribute("data-direction", "asc");
