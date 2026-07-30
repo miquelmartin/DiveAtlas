@@ -42,6 +42,7 @@ describe("selected dive statistics", () => {
         libraryDives: [
           {
             dateTime: "2025-01-02T10:00:00Z",
+            decoDive: true,
             maxDepth: 30,
             durationSeconds: 3600,
             minTemperature: 18,
@@ -50,6 +51,7 @@ describe("selected dive statistics", () => {
           },
           {
             dateTime: "2025-02-03T10:00:00Z",
+            decoDive: false,
             maxDepth: 20,
             durationSeconds: 2400,
             minTemperature: 20,
@@ -58,6 +60,7 @@ describe("selected dive statistics", () => {
           },
           {
             dateTime: "2025-03-15T10:00:00Z",
+            decoDive: null,
             maxDepth: 50,
             durationSeconds: 7200,
             minTemperature: 12,
@@ -74,14 +77,15 @@ describe("selected dive statistics", () => {
       "Decompression Dives",
     );
     expect(container.querySelector(".dive-type-summary svg").getAttribute("aria-label")).toBe(
-      "1 decompression, 1 no-decompression, and 1 unknown dives",
+      "1 decompression, 1 no-decompression, and 1 unknown dives in the library; 3 selected",
     );
     expect(container.querySelectorAll(".donut-segment")).toHaveLength(3);
+    expect(container.querySelectorAll(".donut-selection-segment")).toHaveLength(3);
     expect([...container.querySelectorAll(".donut-segment title")].map((item) => item.textContent))
       .toEqual([
-        "1 decompression dive",
-        "1 no-decompression dive",
-        "1 unknown dive",
+        "Decompression · All dives: 1 · Selected dives: 1",
+        "No-decompression · All dives: 1 · Selected dives: 1",
+        "Unknown · All dives: 1 · Selected dives: 1",
       ]);
     expect(
       [...container.querySelectorAll(".donut-segment")].map((item) => ({
@@ -89,9 +93,18 @@ describe("selected dive statistics", () => {
         label: item.getAttribute("aria-label"),
       })),
     ).toEqual([
-      { tabindex: "0", label: "1 decompression dive" },
-      { tabindex: "0", label: "1 no-decompression dive" },
-      { tabindex: "0", label: "1 unknown dive" },
+      {
+        tabindex: "0",
+        label: "Decompression · All dives: 1 · Selected dives: 1",
+      },
+      {
+        tabindex: "0",
+        label: "No-decompression · All dives: 1 · Selected dives: 1",
+      },
+      {
+        tabindex: "0",
+        label: "Unknown · All dives: 1 · Selected dives: 1",
+      },
     ]);
     expect(container.querySelectorAll(".histogram-chart")).toHaveLength(6);
     expect(container.querySelectorAll(".monthly-histogram .histogram-bar-all")).toHaveLength(3);
@@ -131,6 +144,19 @@ describe("selected dive statistics", () => {
     );
     expect(container.querySelector(".scatter-chart h3").textContent).toBe("Depth vs duration");
     expect(
+      [...container.querySelectorAll(".scatter-axis-y-label")].map((item) => ({
+        text: item.textContent,
+        y: Number(item.getAttribute("y")),
+      })),
+    ).toEqual([
+      { text: "50.0 m", y: 119 },
+      { text: "0 m", y: 9 },
+    ]);
+    const deepestPoint = [...container.querySelectorAll(".scatter-point-all")].find(
+      (point) => Number(point.getAttribute("cy")) === 116,
+    );
+    expect(deepestPoint).toBeTruthy();
+    expect(
       container.querySelector(".distribution-chart svg").getAttribute("aria-label"),
     ).toBe(
       "Maximum depth distribution: 3 of 3 library dives and 2 of 3 selected dives have data",
@@ -162,6 +188,46 @@ describe("selected dive statistics", () => {
     expect(populatedDepthBin.getAttribute("role")).toBe("button");
     firstDepthBin.dispatchEvent(new PointerEvent("pointerleave"));
     expect(tooltip.hidden).toBe(true);
+  });
+
+  it("renders library statistics before any dives are selected", () => {
+    const container = document.createElement("div");
+    const libraryDives = [
+      {
+        number: 1,
+        dateTime: "2025-01-01T10:00:00Z",
+        decoDive: true,
+        maxDepth: 30,
+        durationSeconds: 3600,
+        minTemperature: 18,
+        maxCns: 12,
+        maxGf99: 70,
+      },
+      {
+        number: 2,
+        dateTime: "2025-02-01T10:00:00Z",
+        decoDive: false,
+        maxDepth: 20,
+        durationSeconds: 2400,
+        minTemperature: 20,
+        maxCns: 5,
+        maxGf99: 55,
+      },
+    ];
+
+    renderSelectionStatistics(container, [], { libraryDives });
+
+    expect(container.querySelectorAll(".selection-grid > section")).toHaveLength(8);
+    expect(container.querySelector(".donut-total").textContent).toBe("2");
+    expect(container.querySelectorAll(".donut-selection-segment")).toHaveLength(0);
+    expect(container.querySelectorAll(".scatter-point-all")).toHaveLength(2);
+    expect(container.querySelectorAll(".scatter-point-selected")).toHaveLength(0);
+    expect(
+      [...container.querySelectorAll(".histogram-bar-selected")].every(
+        (bar) => Number(bar.getAttribute("height")) === 0,
+      ),
+    ).toBe(true);
+    expect(container.textContent).not.toContain("Select dives to see statistics");
   });
 
   it("shows empty states for selected dives without profile summaries", () => {

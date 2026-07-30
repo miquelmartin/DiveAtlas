@@ -53,7 +53,7 @@ export function normalizedDivePayload(dive, profile) {
 }
 
 export function deriveDecoDive(samples = []) {
-  if (!samples.length) return null;
+  if (!samples.length) return false;
   return samples.some(
     (sample) => Number.isFinite(sample.depth) && sample.depth >= 3 && sample.nodeco === 0,
   );

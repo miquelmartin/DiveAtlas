@@ -255,6 +255,45 @@ describe("IndexedDB persistence", () => {
     });
   });
 
+  it("classifies stored profileless dives as no-decompression when migrating v4 data", async () => {
+    const name = `diveatlas-v4-${crypto.randomUUID()}`;
+    const request = indexedDB.open(name, 4);
+    const legacy = await new Promise((resolve, reject) => {
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        const dives = database.createObjectStore("dives", { keyPath: "id" });
+        dives.createIndex("dateTime", "dateTime");
+        dives.createIndex("mappingKey", "mappingKey");
+        database.createObjectStore("profiles", { keyPath: "diveId" });
+        database.createObjectStore("mappings", { keyPath: "key" });
+        const imports = database.createObjectStore("imports", { keyPath: "recordId" });
+        imports.createIndex("sourceHash", "sourceHash", { unique: true });
+        imports.createIndex("diveIds", "diveIds", { multiEntry: true });
+        database.createObjectStore("settings", { keyPath: "key" });
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const { dive, profile } = records("meta|v4-profileless");
+    dive.decoDive = null;
+    profile.samples = [];
+    const transaction = legacy.transaction(["dives", "profiles"], "readwrite");
+    transaction.objectStore("dives").put(dive);
+    transaction.objectStore("profiles").put(profile);
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+    });
+    legacy.close();
+
+    const connection = openDatabase(indexedDB, name);
+    databases.push({ name, connection });
+    expect(await getRecord("dives", dive.id, connection)).toEqual({
+      ...dive,
+      decoDive: false,
+    });
+  });
+
   it("deduplicates identical v1 re-exports with different local IDs", async () => {
     const name = `diveatlas-v1-duplicates-${crypto.randomUUID()}`;
     const request = indexedDB.open(name, 1);

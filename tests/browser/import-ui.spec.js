@@ -291,6 +291,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   const showOutsideMap = page.getByRole("checkbox", { name: "Show dives outside the map" });
   const selectionActions = page.getByRole("group", { name: "Select dives" });
   const resetFilters = page.getByRole("button", { name: "Clear filters" });
+  await expect(page.locator(".dive-control-section legend")).toHaveText(["Select", "Filters"]);
   await expect(resetFilters).toHaveText("×");
   const selectionButtonHeight = await selectionActions.getByRole("button", { name: "Map" }).evaluate(
     (button) => button.getBoundingClientRect().height,
@@ -298,7 +299,26 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   const resetButtonWidth = await resetFilters.evaluate((button) => button.getBoundingClientRect().width);
   expect(selectionButtonHeight).toBeLessThan(24);
   expect(resetButtonWidth).toBeLessThan(32);
-  await expect(page.locator(".dive-list-pane #show-outside-map")).toHaveCount(1);
+  await expect(page.locator(".dive-filter-controls #show-outside-map")).toHaveCount(1);
+  await expect(page.locator(".dive-control-section:first-child #show-outside-map")).toHaveCount(0);
+  const filterLayout = await page.locator(".dive-filter-controls").evaluate((filters) => {
+    const keyword = filters.querySelector(".view-keyword input");
+    const thresholdLabels = [...filters.querySelectorAll(".view-thresholds label")];
+    return {
+      keywordBorderTop: getComputedStyle(keyword).borderTopWidth,
+      keywordBorderBottom: getComputedStyle(keyword).borderBottomWidth,
+      thresholdsInline: thresholdLabels.every((label) => {
+        const input = label.querySelector("input").getBoundingClientRect();
+        const bounds = label.getBoundingClientRect();
+        return Math.abs(input.y + input.height / 2 - (bounds.y + bounds.height / 2)) < 2;
+      }),
+    };
+  });
+  expect(filterLayout).toEqual({
+    keywordBorderTop: "0px",
+    keywordBorderBottom: "1px",
+    thresholdsInline: true,
+  });
   await expect(showOutsideMap).toBeEnabled();
   await showOutsideMap.check();
   await expect(page.locator(".dive-row")).toHaveCount(4);
@@ -308,17 +328,31 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   );
   await expect(page.locator("#profile-chart .profile-empty")).toHaveCSS("place-items", "center");
   await expect(page.locator("#dive-detail")).toContainText("Unmapped Cove");
+  await expect(page.locator("#dive-detail")).toContainText("No-decompression");
   await selectionActions.getByRole("button", { name: "None" }).click();
   await showOutsideMap.uncheck();
   await expect(page.locator("#selection-empty")).toHaveText(
     "Select a dive from the list or map.",
   );
   await expect(page.locator("#selection-empty")).toBeVisible();
-  await expect(
-    page.locator(
-      "#profile-chart:not([hidden]), #selection-stats:not([hidden]), #dive-detail:not([hidden])",
+  await expect(page.locator("#profile-chart:not([hidden]), #dive-detail:not([hidden])")).toHaveCount(
+    0,
+  );
+  await expect(page.locator("#selection-stats")).toBeVisible();
+  await expect(page.locator(".selection-grid > section")).toHaveCount(8);
+  await expect(page.locator(".scatter-point-all")).toHaveCount(3);
+  await expect(page.locator(".scatter-point-selected")).toHaveCount(0);
+  await expect(page.locator(".donut-selection-segment")).toHaveCount(0);
+  await expect(page.locator(".donut-total")).toHaveText("4");
+  await expect(page.locator(".dive-type-summary svg")).toHaveAttribute(
+    "aria-label",
+    "3 decompression, 1 no-decompression, and 0 unknown dives in the library; 0 selected",
+  );
+  expect(
+    await page.locator(".histogram-bar-selected").evaluateAll((bars) =>
+      bars.every((bar) => Number(bar.getAttribute("height")) === 0),
     ),
-  ).toHaveCount(0);
+  ).toBe(true);
 
   await selectionActions.getByRole("button", { name: "All" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(3);
@@ -339,16 +373,18 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator("#dive-detail")).toContainText("3 dives selected");
   await expect(page.locator(".monthly-histogram .histogram-bar-all")).toHaveCount(1);
   await expect(page.locator(".monthly-histogram .histogram-bar-selected")).toHaveCount(1);
-  await expect(page.locator(".donut-total")).toHaveText("3");
+  await expect(page.locator(".donut-total")).toHaveText("4");
   await expect(page.locator(".dive-type-summary svg")).toHaveAttribute(
     "aria-label",
-    "3 decompression, 0 no-decompression, and 0 unknown dives",
+    "3 decompression, 1 no-decompression, and 0 unknown dives in the library; 3 selected",
   );
   await expect(page.getByRole("heading", { name: "Decompression Dives" })).toBeVisible();
   await expect(page.locator(".donut-legend")).not.toContainText("Unknown");
   await expect(page.locator(".donut-segment title")).toContainText([
-    "3 decompression dives",
+    "Decompression · All dives: 3 · Selected dives: 3",
+    "No-decompression · All dives: 1 · Selected dives: 0",
   ]);
+  await expect(page.locator(".donut-selection-segment")).toHaveCount(1);
   await expect(page.locator(".distribution-chart")).toHaveCount(5);
   await expect(page.locator(".distribution-chart .histogram-bar-all")).toHaveCount(100);
   await expect(page.locator(".distribution-chart .histogram-bar-selected")).toHaveCount(100);
@@ -366,6 +402,10 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     const monthly = container.querySelector(".monthly-histogram").getBoundingClientRect();
     const diveTypes = container.querySelector(".dive-type-summary").getBoundingClientRect();
     const legend = container.querySelector(".donut-legend");
+    const profileChart = document.querySelector("#profile-chart");
+    const profileSvg = profileChart.querySelector("svg").getBoundingClientRect();
+    const profileStyle = getComputedStyle(profileChart);
+    const plotGrid = container.querySelector(".selection-grid");
     return {
       background,
       profileBackground,
@@ -402,7 +442,20 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
         },
       ),
       histogramHeight: container.querySelector(".histogram-chart svg").getBoundingClientRect().height,
+      scatterHeight: container.querySelector(".scatter-chart svg").getBoundingClientRect().height,
+      donutHeight: container.querySelector(".dive-type-summary svg").getBoundingClientRect().height,
+      plotGap: Number.parseFloat(getComputedStyle(plotGrid).columnGap),
+      profileWidthRatio:
+        profileSvg.width /
+        (profileChart.clientWidth -
+          Number.parseFloat(profileStyle.paddingLeft) -
+          Number.parseFloat(profileStyle.paddingRight)),
+      profileAspectRatio: profileSvg.width / profileSvg.height,
       profileHeight: document.querySelector("#profile-chart").getBoundingClientRect().height,
+      scatterYAxis: [...container.querySelectorAll(".scatter-axis-y-label")].map((label) => ({
+        text: label.textContent,
+        y: Number(label.getAttribute("y")),
+      })),
     };
   });
   expect(statisticsLayout.distributionBackground).toBe(statisticsLayout.background);
@@ -416,8 +469,17 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   expect(statisticsLayout.borderlessCharts).toBe(true);
   expect(statisticsLayout.unifiedStatisticsPanel).toBe(true);
   expect(statisticsLayout.equalBarWidths).toBe(true);
-  expect(statisticsLayout.histogramHeight).toBeGreaterThan(100);
+  expect(statisticsLayout.histogramHeight).toBeGreaterThan(120);
+  expect(statisticsLayout.scatterHeight).toBeGreaterThan(150);
+  expect(statisticsLayout.donutHeight).toBeGreaterThan(80);
+  expect(statisticsLayout.plotGap).toBeGreaterThanOrEqual(10);
+  expect(statisticsLayout.profileWidthRatio).toBeGreaterThan(0.98);
+  expect(statisticsLayout.profileAspectRatio).toBeCloseTo(720 / 280, 1);
   expect(statisticsLayout.profileHeight).toBeLessThan(250);
+  expect(statisticsLayout.scatterYAxis).toEqual([
+    { text: "24.2 m", y: 119 },
+    { text: "0 m", y: 9 },
+  ]);
   const histogramColors = await page.locator(".histogram-chart").first().evaluate((chart) => {
     const allBar = chart.querySelector(".histogram-bar-all");
     const selectedBar = chart.querySelector(".histogram-bar-selected");
@@ -494,6 +556,10 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   expect(
     donutColors.donut.every(({ legend }) => !donutColors.histogramColors.includes(legend)),
   ).toBe(true);
+  await expect(page.locator(".donut-selection-segment").first()).toHaveCSS(
+    "stroke",
+    histogramColors.expectedSelected,
+  );
   await expect(page.locator(".profile-legend")).toHaveCount(0);
   await selectionActions.getByRole("button", { name: "None" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(0);

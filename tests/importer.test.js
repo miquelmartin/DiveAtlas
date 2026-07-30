@@ -67,7 +67,12 @@ describe("incremental import flow", () => {
       message: "1 dive(s) imported",
     });
     expect(await getAll("dives", database)).toEqual([
-      expect.objectContaining({ number: 42, sampleCount: 0, durationSeconds: 180 }),
+      expect.objectContaining({
+        number: 42,
+        sampleCount: 0,
+        durationSeconds: 180,
+        decoDive: false,
+      }),
     ]);
     expect(await getAll("profiles", database)).toEqual([
       expect.objectContaining({ samples: [] }),

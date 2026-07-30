@@ -509,7 +509,7 @@ function selectedDateExtent() {
 function renderSelectionStats() {
   const dives = state.dives.filter((dive) => state.selectedViewDives.has(dive.id));
   setSelectionPaneEmpty(dives.length === 0);
-  if (!dives.length) {
+  if (!state.dives.length) {
     elements["selection-stats"].replaceChildren();
     return;
   }
@@ -524,9 +524,10 @@ function renderSelectionStats() {
 
 function setSelectionPaneEmpty(empty) {
   elements["selection-empty"].hidden = !empty;
-  ["profile-chart", "selection-stats", "dive-detail"].forEach((id) => {
+  ["profile-chart", "dive-detail"].forEach((id) => {
     elements[id].hidden = empty;
   });
+  elements["selection-stats"].hidden = state.dives.length === 0;
 }
 
 async function renderSelectedDiveDetails() {

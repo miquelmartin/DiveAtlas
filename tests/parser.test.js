@@ -68,7 +68,7 @@ describe("UDDF parser", () => {
       maxDepth: null,
       durationSeconds: 180,
       sampleCount: 0,
-      decoDive: null,
+      decoDive: false,
     });
     expect(profile.samples).toEqual([]);
   });
