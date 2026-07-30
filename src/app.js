@@ -86,6 +86,8 @@ const elements = Object.fromEntries(
     "clear-filters",
     "show-outside-map",
     "select-map-dives",
+    "select-list-dives",
+    "clear-view-dives",
     "view-result-count",
     "view-dive-list",
     "dive-detail",
@@ -638,6 +640,14 @@ function currentMapDives() {
   return filterDivesToBounds(mappedDives, lookup, state.mapBounds);
 }
 
+function currentListDives() {
+  const baseDives = currentViewDives();
+  if (state.mapBounds && !state.showOutsideMap) {
+    return filterDivesToBounds(baseDives, mappingLookup(), state.mapBounds);
+  }
+  return baseDives;
+}
+
 async function handleMapBoundsChange(bounds) {
   state.mapBounds = bounds;
   const mapDives = currentMapDives();
@@ -665,6 +675,8 @@ function renderView({ updateMap = true, fitMap = false } = {}) {
   elements["show-outside-map"].disabled = !state.mapBounds || outsideCount === 0;
   elements["show-outside-map"].checked = showOutside;
   elements["select-map-dives"].disabled = currentMapDives().length === 0;
+  elements["select-list-dives"].disabled = dives.length === 0;
+  elements["clear-view-dives"].disabled = state.selectedViewDives.size === 0;
   renderSelectionStats();
   elements["view-dive-list"].replaceChildren();
   const diveRows = dives.map((dive) => ({
@@ -934,6 +946,16 @@ function registerEvents() {
   });
   elements["select-map-dives"].addEventListener("click", async () => {
     state.selectedViewDives = new Set(currentMapDives().map((dive) => dive.id));
+    renderView({ updateMap: false });
+    await renderSelectedDiveDetails();
+  });
+  elements["select-list-dives"].addEventListener("click", async () => {
+    state.selectedViewDives = new Set(currentListDives().map((dive) => dive.id));
+    renderView({ updateMap: false });
+    await renderSelectedDiveDetails();
+  });
+  elements["clear-view-dives"].addEventListener("click", async () => {
+    state.selectedViewDives.clear();
     renderView({ updateMap: false });
     await renderSelectedDiveDetails();
   });
