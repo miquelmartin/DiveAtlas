@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { profilePath, renderProfileChart } from "../src/profile-chart.js";
-import { filterDives, filterDivesToBounds, sortDives } from "../src/view-model.js";
+import {
+  filterDives,
+  filterDivesToBounds,
+  monthlyDiveCounts,
+  sortDives,
+} from "../src/view-model.js";
 
 const dives = [
   {
@@ -85,6 +90,21 @@ it("filters mapped dives to the visible map bounds", () => {
   ).toEqual([mapped[0], mapped[2]]);
 });
 
+it("builds monthly counts across the full selected date range", () => {
+  const counts = monthlyDiveCounts(dives, "2024-01-01", "2025-03-31");
+  expect(counts).toHaveLength(15);
+  expect(counts[0]).toEqual({ month: "2024-01", count: 1 });
+  expect(counts.find(({ month }) => month === "2024-08")).toEqual({
+    month: "2024-08",
+    count: 0,
+  });
+  expect(counts.find(({ month }) => month === "2025-02")).toEqual({
+    month: "2025-02",
+    count: 1,
+  });
+  expect(counts.at(-1)).toEqual({ month: "2025-03", count: 0 });
+});
+
 describe("profile rendering", () => {
   const samples = [
     { time: 0, depth: 0, temperature: 20 },
@@ -106,7 +126,7 @@ describe("profile rendering", () => {
     expect(container.querySelectorAll(".profile-axis-label")).toHaveLength(10);
   });
 
-  it("overlays multiple profiles with a legend", () => {
+  it("overlays multiple profiles without a persistent legend", () => {
     const container = document.createElement("div");
     renderProfileChart(container, [
       { label: "Dive 1", samples },
@@ -119,8 +139,7 @@ describe("profile rendering", () => {
       "2 depth profiles over dive time",
     );
     expect(container.querySelectorAll(".profile-line")).toHaveLength(2);
-    expect([...container.querySelectorAll(".profile-legend li")].map((item) => item.textContent))
-      .toEqual(["Dive 1", "Dive 2"]);
+    expect(container.querySelector(".profile-legend")).toBeNull();
   });
 
   it("shows dive metadata, depth, and elapsed minutes in a hover tooltip", () => {
@@ -148,6 +167,23 @@ describe("profile rendering", () => {
     );
   });
 
+  it("reports unavailable profiles without hiding profiles that can be drawn", () => {
+    const container = document.createElement("div");
+    renderProfileChart(container, [
+      { label: "Dive 1", samples: [] },
+      { label: "Dive 2", samples },
+    ]);
+    expect(container.querySelectorAll(".profile-line")).toHaveLength(1);
+    expect(container.querySelector(".profile-unavailable").textContent).toBe(
+      "1 selected dive has no profile samples.",
+    );
+
+    renderProfileChart(container, [{ label: "Dive 1", samples: [] }]);
+    expect(container.textContent).toBe(
+      "No profile samples are available for the selected dive.",
+    );
+  });
+
   it("handles large profile selections without spreading every sample", () => {
     const container = document.createElement("div");
     const largeSelection = Array.from({ length: 200 }, (_, diveIndex) => ({
@@ -159,6 +195,6 @@ describe("profile rendering", () => {
     }));
     expect(() => renderProfileChart(container, largeSelection)).not.toThrow();
     expect(container.querySelectorAll(".profile-line")).toHaveLength(200);
-    expect(container.querySelectorAll(".profile-legend li")).toHaveLength(7);
+    expect(container.querySelector(".profile-legend")).toBeNull();
   });
 });

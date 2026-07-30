@@ -30,8 +30,7 @@ function directDiveProfiles(root) {
   const profileData = first(root, "profiledata");
   if (!profileData) return [];
   const repetitionGroup = first(profileData, "repetitiongroup");
-  const candidates = descendants(repetitionGroup ?? profileData, "dive");
-  return candidates.filter((candidate) => first(candidate, "samples"));
+  return descendants(repetitionGroup ?? profileData, "dive");
 }
 
 function parseDateTime(information) {
@@ -113,7 +112,7 @@ export function parseUddf(xmlText, sourceName = "UDDF file") {
   const decoNode = decoContainer?.children?.[0] ?? null;
   const profiles = directDiveProfiles(root);
   if (!profiles.length) {
-    throw new Error(`${sourceName}: no dive profile with samples was found`);
+    throw new Error(`${sourceName}: no dive records were found`);
   }
 
   return profiles.map((profile) => {
@@ -121,9 +120,6 @@ export function parseUddf(xmlText, sourceName = "UDDF file") {
     const samples = descendants(first(profile, "samples"), "waypoint")
       .map(parseWaypoint)
       .filter((sample) => Number.isFinite(sample.time) && Number.isFinite(sample.depth));
-    if (!samples.length) {
-      throw new Error(`${sourceName}: dive profile has no valid time/depth waypoints`);
-    }
 
     const summary = profileSummary(samples);
     const dive = {

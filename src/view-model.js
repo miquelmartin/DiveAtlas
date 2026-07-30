@@ -53,3 +53,29 @@ export function filterDivesToBounds(dives, mappings, bounds) {
       : mapping.longitude >= bounds.west || mapping.longitude <= bounds.east;
   });
 }
+
+export function monthlyDiveCounts(dives, from, to) {
+  const diveMonths = dives
+    .map((dive) => dive.dateTime?.slice(0, 7))
+    .filter((month) => /^\d{4}-\d{2}$/.test(month));
+  const sortedDiveMonths = [...diveMonths].sort();
+  const firstMonth = from?.slice(0, 7) || sortedDiveMonths[0];
+  const lastMonth = to?.slice(0, 7) || sortedDiveMonths.at(-1);
+  if (!firstMonth || !lastMonth) return [];
+
+  const [firstYear, firstMonthNumber] = firstMonth.split("-").map(Number);
+  const [lastYear, lastMonthNumber] = lastMonth.split("-").map(Number);
+  const monthCount =
+    (lastYear - firstYear) * 12 + lastMonthNumber - firstMonthNumber + 1;
+  if (monthCount <= 0) return [];
+
+  const counts = new Map(diveMonths.map((month) => [month, 0]));
+  diveMonths.forEach((month) => counts.set(month, (counts.get(month) ?? 0) + 1));
+  return Array.from({ length: monthCount }, (_, index) => {
+    const monthIndex = firstMonthNumber - 1 + index;
+    const year = firstYear + Math.floor(monthIndex / 12);
+    const month = (monthIndex % 12) + 1;
+    const key = `${year}-${String(month).padStart(2, "0")}`;
+    return { month: key, count: counts.get(key) ?? 0 };
+  });
+}

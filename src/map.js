@@ -31,7 +31,8 @@ export function initializeMap(element, callbacks = {}) {
     L.markerClusterGroup
       ? L.markerClusterGroup({
           showCoverageOnHover: false,
-          maxClusterRadius: 48,
+          maxClusterRadius: 28,
+          disableClusteringAtZoom: 11,
           spiderfyOnMaxZoom: true,
         })
       : L.layerGroup()
@@ -52,11 +53,17 @@ export function renderMap(diveGroups, { fit = false } = {}) {
   if (!map || !markerLayer) return;
   markerLayer.clearLayers();
   const bounds = [];
+  const diveIcon = L.divIcon({
+    className: "dive-map-marker",
+    html: "<span></span>",
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
   diveGroups.forEach(({ mapping, dives }) => {
     const coordinates = [mapping.latitude, mapping.longitude];
     dives.forEach((dive) => {
       bounds.push(coordinates);
-      const marker = L.marker(coordinates).bindPopup(
+      const marker = L.marker(coordinates, { icon: diveIcon }).bindPopup(
         `<strong>Dive ${escapeHtml(dive.number ?? "—")}</strong><br>${escapeHtml(
           mapping.site,
         )}<br>${escapeHtml(mapping.location)}`,

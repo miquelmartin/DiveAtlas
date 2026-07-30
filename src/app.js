@@ -11,8 +11,13 @@ import { importSources } from "./importer.js";
 import { enrichMappingCountry, UNASSIGNED_COUNTRY } from "./country.js";
 import { initializeMap, renderMap } from "./map.js";
 import { renderProfileChart } from "./profile-chart.js";
-import { downloadJson, formatBytes } from "./utils.js";
-import { filterDives, filterDivesToBounds, sortDives } from "./view-model.js";
+import { downloadJson, formatBytes, normalizeKey } from "./utils.js";
+import {
+  filterDives,
+  filterDivesToBounds,
+  monthlyDiveCounts,
+  sortDives,
+} from "./view-model.js";
 
 const state = {
   dives: [],
@@ -80,10 +85,11 @@ const elements = Object.fromEntries(
     "date-range-label",
     "clear-filters",
     "show-outside-map",
-    "reset-map-filter",
+    "select-map-dives",
     "view-result-count",
     "view-dive-list",
     "dive-detail",
+    "selection-stats",
     "profile-chart",
     "map",
   ].map((id) => [id, document.getElementById(id)]),
@@ -106,8 +112,7 @@ function setWorkspace(name) {
   if (name === "view" && !state.mapInitialized) {
     initializeMap(elements.map, {
       onBoundsChange: (bounds) => {
-        state.mapBounds = bounds;
-        renderView({ updateMap: false });
+        void handleMapBoundsChange(bounds);
       },
       onMarkerSelect: (ids) => void toggleViewDives(ids),
     });
@@ -342,29 +347,81 @@ function renderDiveTable() {
 function renderMappingTable() {
   const mappings = filteredMappingsForTable();
   elements["mapping-table-body"].replaceChildren();
+  const locations = new Map();
   mappings.forEach((mapping) => {
-    const row = document.createElement("tr");
-    const selection = document.createElement("td");
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = state.selectedMappings.has(mapping.key);
-    checkbox.setAttribute("aria-label", `Select ${mapping.location} / ${mapping.site}`);
-    checkbox.addEventListener("change", () => {
-      checkbox.checked
-        ? state.selectedMappings.add(mapping.key)
-        : state.selectedMappings.delete(mapping.key);
-      updateRemovalButtons();
-    });
-    selection.append(checkbox);
-    row.append(selection);
-    cell(row, mapping.location);
-    cell(row, mapping.site);
-    cell(row, mapping.country || UNASSIGNED_COUNTRY);
-    cell(row, mapping.latitude.toFixed(5));
-    cell(row, mapping.longitude.toFixed(5));
-    cell(row, mapping.confidence);
-    elements["mapping-table-body"].append(row);
+    const key = normalizeKey(mapping.location);
+    if (!locations.has(key)) {
+      locations.set(key, { location: mapping.location, mappings: [] });
+    }
+    locations.get(key).mappings.push(mapping);
   });
+  [...locations.values()]
+    .sort((left, right) => left.location.localeCompare(right.location))
+    .forEach((group) => {
+      group.mappings.sort((left, right) => left.site.localeCompare(right.site));
+      const locationRow = document.createElement("tr");
+      locationRow.className = "mapping-location-row";
+      const groupSelection = document.createElement("td");
+      const groupCheckbox = document.createElement("input");
+      groupCheckbox.type = "checkbox";
+      const selectedCount = group.mappings.filter((mapping) =>
+        state.selectedMappings.has(mapping.key),
+      ).length;
+      groupCheckbox.checked = selectedCount === group.mappings.length;
+      groupCheckbox.indeterminate = selectedCount > 0 && selectedCount < group.mappings.length;
+      groupCheckbox.setAttribute(
+        "aria-label",
+        `Select all ${group.mappings.length} sites in ${group.location}`,
+      );
+      groupCheckbox.addEventListener("change", () => {
+        group.mappings.forEach((mapping) => {
+          if (groupCheckbox.checked) state.selectedMappings.add(mapping.key);
+          else state.selectedMappings.delete(mapping.key);
+        });
+        renderMappingTable();
+        updateRemovalButtons();
+      });
+      groupSelection.append(groupCheckbox);
+      const location = document.createElement("th");
+      location.scope = "rowgroup";
+      location.colSpan = 5;
+      const locationName = document.createElement("span");
+      locationName.textContent = group.location;
+      const count = document.createElement("span");
+      count.className = "mapping-location-count";
+      count.textContent = `${group.mappings.length} site${group.mappings.length === 1 ? "" : "s"}`;
+      location.append(locationName, count);
+      locationRow.append(groupSelection, location);
+      elements["mapping-table-body"].append(locationRow);
+
+      group.mappings.forEach((mapping) => {
+        const row = document.createElement("tr");
+        row.className = "mapping-site-row";
+        const selection = document.createElement("td");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = state.selectedMappings.has(mapping.key);
+        checkbox.setAttribute("aria-label", `Select ${mapping.location} / ${mapping.site}`);
+        checkbox.addEventListener("change", () => {
+          checkbox.checked
+            ? state.selectedMappings.add(mapping.key)
+            : state.selectedMappings.delete(mapping.key);
+          renderMappingTable();
+          updateRemovalButtons();
+        });
+        selection.append(checkbox);
+        row.append(selection);
+        const site = document.createElement("th");
+        site.scope = "row";
+        site.textContent = mapping.site;
+        row.append(site);
+        cell(row, mapping.country || UNASSIGNED_COUNTRY);
+        cell(row, mapping.latitude.toFixed(5));
+        cell(row, mapping.longitude.toFixed(5));
+        cell(row, mapping.confidence);
+        elements["mapping-table-body"].append(row);
+      });
+    });
   elements["mapping-empty"].hidden = mappings.length > 0;
   elements["select-all-mappings"].checked =
     mappings.length > 0 && mappings.every((mapping) => state.selectedMappings.has(mapping.key));
@@ -416,6 +473,94 @@ function currentViewDives() {
     minDepth: elements["min-depth"].value,
     minDuration: elements["min-duration"].value,
   });
+}
+
+function selectedDateExtent() {
+  if (!state.dateValues.length) return { from: "", to: "" };
+  return {
+    from: state.dateValues[Number(elements["date-range-start"].value)] ?? "",
+    to: state.dateValues[Number(elements["date-range-end"].value)] ?? "",
+  };
+}
+
+function renderSelectionStats() {
+  const container = elements["selection-stats"];
+  const dives = state.dives.filter((dive) => state.selectedViewDives.has(dive.id));
+  container.replaceChildren();
+  if (!dives.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "Select dives to see statistics.";
+    container.append(empty);
+    return;
+  }
+
+  const { from, to } = selectedDateExtent();
+  const months = monthlyDiveCounts(dives, from, to);
+  const histogram = document.createElement("section");
+  histogram.className = "monthly-histogram";
+  const histogramHeading = document.createElement("h3");
+  histogramHeading.textContent = "Dives per month";
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 480 120");
+  svg.setAttribute("role", "img");
+  svg.setAttribute(
+    "aria-label",
+    `Monthly histogram for ${dives.length} selected dive${dives.length === 1 ? "" : "s"} from ${from || "first dive"} to ${to || "last dive"}`,
+  );
+  const maxCount = months.reduce((maximum, item) => Math.max(maximum, item.count), 1);
+  const plotLeft = 28;
+  const plotRight = 472;
+  const plotTop = 8;
+  const plotBottom = 88;
+  const slotWidth = (plotRight - plotLeft) / Math.max(1, months.length);
+  const labelStep = Math.max(1, Math.ceil(months.length / 6));
+  months.forEach((item, index) => {
+    const height = (item.count / maxCount) * (plotBottom - plotTop);
+    const bar = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    bar.setAttribute("x", plotLeft + index * slotWidth + Math.min(1.5, slotWidth * 0.1));
+    bar.setAttribute("y", plotBottom - height);
+    bar.setAttribute("width", Math.max(1, slotWidth - Math.min(3, slotWidth * 0.2)));
+    bar.setAttribute("height", height);
+    bar.setAttribute("class", "monthly-bar");
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = `${item.month}: ${item.count} dive${item.count === 1 ? "" : "s"}`;
+    bar.append(title);
+    svg.append(bar);
+    if (index % labelStep === 0 || index === months.length - 1) {
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("x", plotLeft + (index + 0.5) * slotWidth);
+      label.setAttribute("y", 106);
+      label.setAttribute("text-anchor", "middle");
+      label.setAttribute("class", "selection-axis-label");
+      label.textContent = item.month;
+      svg.append(label);
+    }
+  });
+  const baseline = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  baseline.setAttribute("x1", plotLeft);
+  baseline.setAttribute("x2", plotRight);
+  baseline.setAttribute("y1", plotBottom);
+  baseline.setAttribute("y2", plotBottom);
+  baseline.setAttribute("class", "selection-axis");
+  svg.append(baseline);
+  histogram.append(histogramHeading, svg);
+
+  const decompression = document.createElement("section");
+  decompression.className = "decompression-summary";
+  const decompressionHeading = document.createElement("h3");
+  decompressionHeading.textContent = "Decompression dives";
+  const decoCount = dives.filter((dive) => dive.decoDive === true).length;
+  const noDecoCount = dives.filter((dive) => dive.decoDive === false).length;
+  const unknownCount = dives.length - decoCount - noDecoCount;
+  const count = document.createElement("strong");
+  count.className = "deco-count";
+  count.textContent = String(decoCount);
+  const total = document.createElement("span");
+  total.textContent = `of ${dives.length} selected`;
+  const breakdown = document.createElement("p");
+  breakdown.textContent = `${noDecoCount} no-decompression · ${unknownCount} unknown`;
+  decompression.append(decompressionHeading, count, total, breakdown);
+  container.append(histogram, decompression);
 }
 
 async function renderSelectedDiveDetails() {
@@ -487,6 +632,23 @@ async function toggleViewDives(ids) {
   renderView({ updateMap: false });
 }
 
+function currentMapDives() {
+  const lookup = mappingLookup();
+  const mappedDives = currentViewDives().filter((dive) => lookup.has(dive.mappingKey));
+  return filterDivesToBounds(mappedDives, lookup, state.mapBounds);
+}
+
+async function handleMapBoundsChange(bounds) {
+  state.mapBounds = bounds;
+  const mapDives = currentMapDives();
+  const autoSelect = state.selectedViewDives.size === 0 && mapDives.length > 0 && mapDives.length <= 5;
+  if (autoSelect) {
+    state.selectedViewDives = new Set(mapDives.map((dive) => dive.id));
+  }
+  renderView({ updateMap: false });
+  if (autoSelect) await renderSelectedDiveDetails();
+}
+
 function renderView({ updateMap = true, fitMap = false } = {}) {
   const baseDives = currentViewDives();
   const lookup = mappingLookup();
@@ -501,11 +663,9 @@ function renderView({ updateMap = true, fitMap = false } = {}) {
       }`
     : `${dives.length} dive${dives.length === 1 ? "" : "s"}`;
   elements["show-outside-map"].disabled = !state.mapBounds || outsideCount === 0;
-  elements["show-outside-map"].textContent = showOutside
-    ? "Hide dives outside the map"
-    : "Show dives outside the map";
-  elements["show-outside-map"].setAttribute("aria-pressed", showOutside);
-  elements["reset-map-filter"].disabled = !state.mapBounds;
+  elements["show-outside-map"].checked = showOutside;
+  elements["select-map-dives"].disabled = currentMapDives().length === 0;
+  renderSelectionStats();
   elements["view-dive-list"].replaceChildren();
   const diveRows = dives.map((dive) => ({
     ...dive,
@@ -525,8 +685,9 @@ function renderView({ updateMap = true, fitMap = false } = {}) {
     );
     const values = [
       ["dive-cell dive-number", dive.number ?? "—"],
+      ["dive-cell", dive.site],
       ["dive-cell", dive.location],
-      ["dive-cell dive-site", dive.site],
+      ["dive-cell dive-country", dive.country],
     ];
     values.forEach(([className, value]) => {
       const item = document.createElement("span");
@@ -541,17 +702,9 @@ function renderView({ updateMap = true, fitMap = false } = {}) {
     const duration = Number.isFinite(dive.durationSeconds)
       ? `${Math.round(dive.durationSeconds / 60)} min`
       : "—";
-    const country = document.createElement("span");
-    country.className = "dive-country";
-    country.textContent = dive.country;
-    country.title = dive.country;
-    stats.append(
-      document.createTextNode(
-        `${dive.dateTime?.slice(0, 10) || "Unknown date"} · `,
-      ),
-      country,
-      document.createTextNode(` · ${depth} · ${duration}`),
-    );
+    stats.textContent = `${
+      dive.dateTime?.slice(0, 10) || "Unknown date"
+    } · ${depth} · ${duration}`;
     button.append(stats);
     button.addEventListener("click", () => void toggleViewDives([dive.id]));
     elements["view-dive-list"].append(button);
@@ -775,14 +928,14 @@ function registerEvents() {
     state.showOutsideMap = false;
     renderView({ fitMap: true });
   });
-  elements["show-outside-map"].addEventListener("click", () => {
-    state.showOutsideMap = !state.showOutsideMap;
+  elements["show-outside-map"].addEventListener("change", (event) => {
+    state.showOutsideMap = event.currentTarget.checked;
     renderView({ updateMap: false });
   });
-  elements["reset-map-filter"].addEventListener("click", () => {
-    state.mapBounds = null;
-    state.showOutsideMap = false;
-    renderView({ fitMap: true });
+  elements["select-map-dives"].addEventListener("click", async () => {
+    state.selectedViewDives = new Set(currentMapDives().map((dive) => dive.id));
+    renderView({ updateMap: false });
+    await renderSelectedDiveDetails();
   });
 }
 
@@ -790,6 +943,7 @@ async function start() {
   await openDatabase();
   registerEvents();
   await refreshLibrary();
+  if (state.dives.length) setWorkspace("view");
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register(new URL("../sw.js", import.meta.url));
   }

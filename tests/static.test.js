@@ -11,6 +11,8 @@ describe("GitHub Pages and offline shell", () => {
     expect(references.filter((reference) => reference.startsWith("/"))).toEqual([]);
     expect(html).toContain('src="src/app.js"');
     expect(html).toContain('src="src/theme.js"');
+    expect(html).toContain("Dive data stays on this device");
+    expect(html).not.toContain("No dive data leaves this device");
     expect(html).not.toMatch(/<script[^>]+https?:/);
     expect(html).not.toMatch(/<script(?:\s[^>]*)?>\s*\(\(\)/);
   });

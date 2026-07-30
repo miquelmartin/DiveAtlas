@@ -413,6 +413,42 @@ tbody tr:hover {
   background: var(--cp-accent-soft);
 }
 
+.mapping-location-row {
+  background: var(--cp-bg-elevated);
+}
+
+.mapping-location-row th {
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.mapping-location-row th span:first-child {
+  font-weight: 700;
+}
+
+.mapping-location-count {
+  margin-left: 0.55rem;
+  color: var(--cp-accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.mapping-site-row th {
+  padding-left: 1.25rem;
+  color: var(--cp-text);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.mapping-site-row th::before {
+  margin-right: 0.4rem;
+  color: var(--cp-border-strong);
+  content: "└";
+}
+
 .status {
   font-size: 0.75rem;
   font-weight: 700;
@@ -506,7 +542,21 @@ tbody tr:hover {
 }
 
 .view-toolbar input[type="number"] {
-  width: 4.5rem;
+  width: 2.75rem;
+  min-height: 1.35rem;
+  padding: 0 0.1rem;
+  border: 0;
+  border-bottom: 1px solid var(--cp-border-strong);
+  border-radius: 0;
+  background: transparent;
+  text-align: right;
+  appearance: textfield;
+}
+
+.view-toolbar input[type="number"]::-webkit-inner-spin-button,
+.view-toolbar input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
 }
 
 .view-dashboard {
@@ -527,7 +577,33 @@ tbody tr:hover {
 
 .dive-list-pane {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.dive-list-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.25rem 0.35rem;
+  border-bottom: 1px solid var(--cp-border);
+}
+
+.dive-list-controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--cp-text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dive-list-controls button {
+  min-height: 1.65rem;
+  padding: 0.15rem 0.35rem;
+  font-size: 0.68rem;
+  white-space: nowrap;
 }
 
 .dive-list-header,
@@ -609,13 +685,8 @@ tbody tr:hover {
   font-weight: 700;
 }
 
-.dive-site {
-  grid-column: 3 / -1;
-}
-
 .dive-country {
-  color: var(--cp-text-muted);
-  font-size: 0.72rem;
+  padding-right: 0;
 }
 
 .dive-stats {
@@ -652,6 +723,20 @@ tbody tr:hover {
 .marker-cluster-large div {
   background: var(--cp-accent);
   color: var(--cp-accent-fg);
+}
+
+.dive-map-marker {
+  border: 2px solid var(--cp-panel-strong);
+  border-radius: 50%;
+  background: var(--cp-accent);
+  box-shadow: 0 1px 4px rgba(0, 35, 50, 0.45);
+}
+
+.dive-map-marker span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
 }
 
 .date-scrubber {
@@ -718,10 +803,10 @@ tbody tr:hover {
   height: 1rem;
   margin-top: -0.375rem;
   appearance: none;
-  border: 2px solid var(--cp-surface);
+  border: 0;
   border-radius: 50%;
   background: var(--cp-accent);
-  box-shadow: 0 0 0 1px var(--cp-border-strong);
+  box-shadow: none;
   pointer-events: auto;
 }
 
@@ -734,10 +819,10 @@ tbody tr:hover {
 .range-stack input[type="range"]::-moz-range-thumb {
   width: 0.75rem;
   height: 0.75rem;
-  border: 2px solid var(--cp-surface);
+  border: 0;
   border-radius: 50%;
   background: var(--cp-accent);
-  box-shadow: 0 0 0 1px var(--cp-border-strong);
+  box-shadow: none;
   pointer-events: auto;
 }
 
@@ -745,8 +830,9 @@ tbody tr:hover {
   display: grid;
   grid-template-areas:
     "chart"
+    "stats"
     "details";
-  grid-template-rows: minmax(14rem, 1fr) auto;
+  grid-template-rows: minmax(14rem, 1fr) auto auto;
   overflow: auto;
 }
 
@@ -801,49 +887,6 @@ tbody tr:hover {
   font-size: 10px;
 }
 
-.profile-legend {
-  position: absolute;
-  right: 0.8rem;
-  bottom: 2.5rem;
-  display: grid;
-  gap: 0.15rem;
-  max-width: 70%;
-  margin: 0;
-  padding: 0.35rem 0.5rem;
-  overflow: hidden;
-  border: 1px solid var(--cp-border);
-  background: var(--cp-panel-strong);
-  list-style: none;
-}
-
-.profile-legend li {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  overflow: hidden;
-  color: var(--cp-text-muted);
-  font-size: 0.68rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profile-swatch {
-  flex: 0 0 1rem;
-  border-top: 2px solid var(--cp-accent);
-}
-
-.profile-swatch.profile-series-1 {
-  border-color: var(--cp-success);
-}
-
-.profile-swatch.profile-series-2 {
-  border-color: var(--cp-warning);
-}
-
-.profile-swatch.profile-series-3 {
-  border-color: var(--cp-danger);
-}
-
 .profile-cursor {
   stroke: var(--cp-border-strong);
   stroke-dasharray: 4 4;
@@ -864,6 +907,85 @@ tbody tr:hover {
   text-align: left;
   pointer-events: none;
   box-shadow: var(--cp-shadow);
+}
+
+.profile-unavailable {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  margin: 0;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-panel-strong);
+  color: var(--cp-text-muted);
+  font-size: 0.68rem;
+}
+
+.selection-stats {
+  grid-area: stats;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7.5rem;
+  gap: 0.55rem;
+  min-height: 8.5rem;
+  padding: 0.4rem 0.55rem;
+  border-top: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+}
+
+.selection-stats > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--cp-text-muted);
+  font-size: 0.72rem;
+}
+
+.selection-stats h3 {
+  margin: 0 0 0.2rem;
+  color: var(--cp-text-muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.monthly-histogram svg {
+  display: block;
+  width: 100%;
+  height: 6.5rem;
+}
+
+.monthly-bar {
+  fill: var(--cp-accent);
+}
+
+.selection-axis {
+  stroke: var(--cp-border-strong);
+}
+
+.selection-axis-label {
+  fill: var(--cp-text-muted);
+  font-size: 8px;
+}
+
+.decompression-summary {
+  padding-left: 0.55rem;
+  border-left: 1px solid var(--cp-border);
+}
+
+.decompression-summary strong {
+  display: block;
+  color: var(--cp-accent);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.decompression-summary span,
+.decompression-summary p {
+  color: var(--cp-text-muted);
+  font-size: 0.65rem;
+}
+
+.decompression-summary p {
+  margin: 0.55rem 0 0;
 }
 
 .dive-detail {

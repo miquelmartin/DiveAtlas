@@ -55,6 +55,24 @@ describe("UDDF parser", () => {
     expect(profile.samples[0].time).toBe(120);
   });
 
+  it("imports dive metadata when no profile samples are present", async () => {
+    const metadataOnly = (await fixture("representative.uddf")).replace(
+      /        <samples>[\s\S]*?        <\/samples>\r?\n/,
+      "",
+    );
+    const [{ dive, profile }] = parseUddf(metadataOnly, "metadata-only.uddf");
+    expect(dive).toMatchObject({
+      number: 42,
+      location: "Example Island, Test Region",
+      site: "Blue Wall",
+      maxDepth: null,
+      durationSeconds: null,
+      sampleCount: 0,
+      decoDive: null,
+    });
+    expect(profile.samples).toEqual([]);
+  });
+
   it("distinguishes explicit decompression from missing no-decompression data", async () => {
     const source = await fixture("representative.uddf");
     const missing = source.replaceAll(/<nodecotime>[^<]+<\/nodecotime>/g, "");
