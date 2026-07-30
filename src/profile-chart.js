@@ -26,6 +26,10 @@ export function profilePath(
 
 export function renderProfileChart(container, samples) {
   container.replaceChildren();
+  const heading = document.createElement("h2");
+  heading.className = "profile-chart-title";
+  heading.textContent = "Depth Profile";
+  container.append(heading);
   const profileSeries = samples?.[0]?.samples
     ? samples
     : samples?.length
@@ -34,11 +38,14 @@ export function renderProfileChart(container, samples) {
   const series = profileSeries.filter((item) => item.samples?.length);
   const unavailableCount = profileSeries.length - series.length;
   if (!series.length) {
-    container.textContent = unavailableCount
+    const empty = document.createElement("p");
+    empty.className = "profile-empty";
+    empty.textContent = unavailableCount
       ? `No profile samples are available for the selected dive${
           unavailableCount === 1 ? "" : "s"
         }.`
       : "No profile samples are available.";
+    container.append(empty);
     return;
   }
   const width = 720;

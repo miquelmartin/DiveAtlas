@@ -157,12 +157,19 @@ function renderDiveTypeDonut(dives) {
   return section;
 }
 
-function renderDistribution({ title, unit, values, selectedDiveCount, lowerBound }) {
+function renderDistribution({
+  title,
+  unit,
+  values,
+  selectedDiveCount,
+  lowerBound,
+  upperBound,
+}) {
   const section = document.createElement("section");
   section.className = "distribution-chart";
   const heading = document.createElement("h3");
   heading.textContent = title;
-  const bins = histogramBins(values, 10, { lowerBound });
+  const bins = histogramBins(values, 20, { lowerBound, upperBound });
   if (!bins.length) {
     const empty = document.createElement("p");
     empty.textContent = "No data";
@@ -175,18 +182,19 @@ function renderDistribution({ title, unit, values, selectedDiveCount, lowerBound
     role: "img",
     "aria-label": `${title} distribution: ${values.length} of ${selectedDiveCount} selected dives have data`,
   });
-  const plotLeft = 18;
-  const plotRight = 234;
+  const plotLeft = 5;
+  const plotRight = 238;
   const plotTop = 7;
   const plotBottom = 75;
   const slotWidth = (plotRight - plotLeft) / bins.length;
   const maxCount = bins.reduce((maximum, bin) => Math.max(maximum, bin.count), 1);
   bins.forEach((bin, index) => {
     const height = (bin.count / maxCount) * (plotBottom - plotTop);
+    const gap = Math.min(0.75, slotWidth * 0.06);
     const bar = svgElement("rect", {
-      x: plotLeft + index * slotWidth + 1,
+      x: plotLeft + index * slotWidth + gap,
       y: plotBottom - height,
-      width: Math.max(1, slotWidth - 2),
+      width: Math.max(1, slotWidth - gap * 2),
       height,
       class: "distribution-bar",
     });
@@ -227,7 +235,11 @@ function renderDistribution({ title, unit, values, selectedDiveCount, lowerBound
   return section;
 }
 
-export function renderSelectionStatistics(container, dives, { from = "", to = "" } = {}) {
+export function renderSelectionStatistics(
+  container,
+  dives,
+  { from = "", to = "", libraryDives = dives } = {},
+) {
   container.replaceChildren();
   if (!dives.length) {
     const empty = document.createElement("p");
@@ -236,12 +248,18 @@ export function renderSelectionStatistics(container, dives, { from = "", to = ""
     return;
   }
 
-  const overview = document.createElement("div");
-  overview.className = "selection-overview";
-  overview.append(renderMonthlyHistogram(dives, from, to), renderDiveTypeDonut(dives));
-
-  const distributions = document.createElement("div");
-  distributions.className = "selection-distributions";
+  const maximum = (key, fallback, transform = (value) => value) =>
+    Math.max(
+      fallback,
+      ...libraryDives.map((dive) => transform(dive[key])).filter(Number.isFinite),
+    );
+  const depthMaximum = maximum("maxDepth", 0);
+  const durationMaximum = maximum("durationSeconds", 0, (value) => value / 60);
+  const cnsMaximum = maximum("maxCns", 100);
+  const gf99Maximum = maximum("maxGf99", 100);
+  const charts = document.createElement("div");
+  charts.className = "selection-grid";
+  charts.append(renderMonthlyHistogram(dives, from, to), renderDiveTypeDonut(dives));
   [
     {
       title: "Maximum depth",
@@ -249,6 +267,7 @@ export function renderSelectionStatistics(container, dives, { from = "", to = ""
       values: dives.map((dive) => dive.maxDepth).filter(Number.isFinite),
       selectedDiveCount: dives.length,
       lowerBound: 0,
+      upperBound: depthMaximum,
     },
     {
       title: "Duration",
@@ -259,6 +278,7 @@ export function renderSelectionStatistics(container, dives, { from = "", to = ""
         .map((duration) => duration / 60),
       selectedDiveCount: dives.length,
       lowerBound: 0,
+      upperBound: durationMaximum,
     },
     {
       title: "Minimum temperature",
@@ -272,6 +292,7 @@ export function renderSelectionStatistics(container, dives, { from = "", to = ""
       values: dives.map((dive) => dive.maxCns).filter(Number.isFinite),
       selectedDiveCount: dives.length,
       lowerBound: 0,
+      upperBound: cnsMaximum,
     },
     {
       title: "Maximum GF99",
@@ -279,7 +300,8 @@ export function renderSelectionStatistics(container, dives, { from = "", to = ""
       values: dives.map((dive) => dive.maxGf99).filter(Number.isFinite),
       selectedDiveCount: dives.length,
       lowerBound: 0,
+      upperBound: gf99Maximum,
     },
-  ].forEach((definition) => distributions.append(renderDistribution(definition)));
-  container.append(overview, distributions);
+  ].forEach((definition) => charts.append(renderDistribution(definition)));
+  container.append(charts);
 }

@@ -35,7 +35,15 @@ describe("selected dive statistics", () => {
           maxGf99: null,
         },
       ],
-      { from: "2025-01-01", to: "2025-02-28" },
+      {
+        from: "2025-01-01",
+        to: "2025-02-28",
+        libraryDives: [
+          { maxDepth: 30, durationSeconds: 3600, maxCns: 12, maxGf99: 70 },
+          { maxDepth: 20, durationSeconds: 2400, maxCns: 5, maxGf99: 55 },
+          { maxDepth: 50, durationSeconds: 7200, maxCns: 130, maxGf99: 110 },
+        ],
+      },
     );
 
     expect(container.querySelector(".donut-total").textContent).toBe("3");
@@ -71,10 +79,21 @@ describe("selected dive statistics", () => {
         "Maximum CNS",
         "Maximum GF99",
       ]);
-    expect(container.querySelectorAll(".distribution-bar")).toHaveLength(50);
+    expect(container.querySelectorAll(".selection-grid > section")).toHaveLength(7);
+    expect(container.querySelectorAll(".distribution-bar")).toHaveLength(100);
     expect(
       container.querySelector(".distribution-chart svg").getAttribute("aria-label"),
     ).toBe("Maximum depth distribution: 2 of 3 selected dives have data");
+    const axisRange = (title) => {
+      const chart = [...container.querySelectorAll(".distribution-chart")].find(
+        (item) => item.querySelector("h3").textContent === title,
+      );
+      return [...chart.querySelectorAll(".selection-axis-label")].map((item) => item.textContent);
+    };
+    expect(axisRange("Maximum depth")).toEqual(["0.0 m", "50.0 m"]);
+    expect(axisRange("Duration")).toEqual(["0.0 min", "120.0 min"]);
+    expect(axisRange("Maximum CNS")).toEqual(["0.0 %", "130.0 %"]);
+    expect(axisRange("Maximum GF99")).toEqual(["0.0 %", "110.0 %"]);
   });
 
   it("shows empty states for selected dives without profile summaries", () => {
