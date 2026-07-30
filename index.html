@@ -5,16 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'sha256-HNjOU2rt1GsFc5zDEQXklLEbjDyKexAo5wKONo5tkTc='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://server.arcgisonline.com https://tiles.openseamap.org; connect-src 'self' https://*.tile.openstreetmap.org https://server.arcgisonline.com https://tiles.openseamap.org; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://server.arcgisonline.com https://tiles.openseamap.org; connect-src 'self' https://*.tile.openstreetmap.org https://server.arcgisonline.com https://tiles.openseamap.org; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
     >
-    <script>
-      (() => {
-        const param = new URLSearchParams(window.location.search).get("scoutTheme");
-        const theme =
-          param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-        document.documentElement.setAttribute("data-theme", theme);
-      })();
-    </script>
+    <script src="src/theme.js"></script>
     <style>
       :root {
         color-scheme: light;
@@ -88,10 +81,19 @@
     <a class="skip-link" href="#workspace">Skip to workspace</a>
     <header class="app-header">
       <h1>DiveAtlas</h1>
-      <nav class="workspace-tabs" aria-label="Workspaces">
-        <button class="tab is-active" type="button" data-workspace="data" aria-controls="data-workspace" aria-selected="true">Data</button>
-        <button class="tab" type="button" data-workspace="view" aria-controls="view-workspace" aria-selected="false">View</button>
-      </nav>
+      <div class="header-actions">
+        <label class="theme-control">Theme
+          <select id="theme-select">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+        <nav class="workspace-tabs" aria-label="Workspaces">
+          <button class="tab is-active" type="button" data-workspace="data" aria-controls="data-workspace" aria-selected="true">Data</button>
+          <button class="tab" type="button" data-workspace="view" aria-controls="view-workspace" aria-selected="false">View</button>
+        </nav>
+      </div>
     </header>
 
     <main id="workspace">

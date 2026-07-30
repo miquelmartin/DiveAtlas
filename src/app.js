@@ -71,6 +71,7 @@ const elements = Object.fromEntries(
     "backup-file",
     "restore-backup",
     "backup-status",
+    "theme-select",
     "min-depth",
     "min-duration",
     "date-range-start",
@@ -652,6 +653,10 @@ async function refreshLibrary() {
 }
 
 function registerEvents() {
+  elements["theme-select"].value = globalThis.diveAtlasTheme?.preference ?? "system";
+  elements["theme-select"].addEventListener("change", (event) => {
+    globalThis.diveAtlasTheme?.set(event.target.value);
+  });
   document.querySelectorAll("[data-workspace]").forEach((button) =>
     button.addEventListener("click", () => setWorkspace(button.dataset.workspace)),
   );

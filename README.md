@@ -9,6 +9,7 @@ DiveAtlas is a static, privacy-focused dive log for Shearwater-style UDDF 3.2 ex
 - Searchable, selectable dive and coordinate tables with atomic dependent-data removal
 - Case-insensitive Location/Site matching, actionable unmatched-site reporting, and merge/replace coordinate controls
 - Dense exploration dashboard with a clustered satellite map, optional street/seamark layers, viewport and date-range filtering, a flat sortable dive table with muted out-of-map reveal, and overlaid native SVG profiles with metadata tooltips
+- System-aware light/dark theme with an on-device user override
 - Versioned JSON backup with validated merge or transactional replace restore
 - Local storage usage and persistence status, installable shell, offline application assets, and GitHub Pages deployment
 
