@@ -119,7 +119,7 @@ describe("selected dive statistics", () => {
         "Maximum CNS",
         "Maximum GF99",
       ]);
-    expect(container.querySelectorAll(".selection-grid > section")).toHaveLength(8);
+    expect([...container.children].filter((child) => child.tagName === "SECTION")).toHaveLength(8);
     expect(container.querySelectorAll(".distribution-chart .histogram-bar-all")).toHaveLength(100);
     expect(container.querySelectorAll(".distribution-chart .histogram-bar-selected")).toHaveLength(
       100,
@@ -186,6 +186,13 @@ describe("selected dive statistics", () => {
     populatedDepthBin.dispatchEvent(new MouseEvent("click"));
     expect(selectedBins.at(-1)).toHaveLength(1);
     expect(populatedDepthBin.getAttribute("role")).toBe("button");
+    container.querySelector(".donut-decompression").dispatchEvent(new MouseEvent("click"));
+    expect(selectedBins.at(-1)).toHaveLength(1);
+    expect(container.querySelector(".donut-decompression").getAttribute("role")).toBe("button");
+    container.querySelector(".scatter-hit-area").dispatchEvent(new MouseEvent("click"));
+    expect(selectedBins.at(-1)).toHaveLength(1);
+    expect(container.querySelector(".scatter-hit-area").getAttribute("role")).toBe("button");
+    expect(container.querySelector(".scatter-point-all").getAttribute("r")).toBe("2.25");
     firstDepthBin.dispatchEvent(new PointerEvent("pointerleave"));
     expect(tooltip.hidden).toBe(true);
   });
@@ -217,7 +224,7 @@ describe("selected dive statistics", () => {
 
     renderSelectionStatistics(container, [], { libraryDives });
 
-    expect(container.querySelectorAll(".selection-grid > section")).toHaveLength(8);
+    expect([...container.children].filter((child) => child.tagName === "SECTION")).toHaveLength(8);
     expect(container.querySelector(".donut-total").textContent).toBe("2");
     expect(container.querySelectorAll(".donut-selection-segment")).toHaveLength(0);
     expect(container.querySelectorAll(".scatter-point-all")).toHaveLength(2);

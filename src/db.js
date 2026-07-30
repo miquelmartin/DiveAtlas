@@ -367,6 +367,7 @@ export async function applyMappings(
   const store = transaction.objectStore("mappings");
   const conflicts = [];
   let added = 0;
+  let updated = 0;
   if (mode === "replace") store.clear();
   for (const mapping of mappings) {
     const existing = mode === "merge" ? await requestResult(store.get(mapping.key)) : undefined;
@@ -378,8 +379,11 @@ export async function applyMappings(
       if (!same) {
         conflicts.push({
           key: mapping.key,
-          message: `Existing mapping for ${mapping.location} / ${mapping.site} was retained`,
+          message: `Existing mapping for ${mapping.location} / ${mapping.site} was replaced by the imported coordinates`,
         });
+        store.put(mapping);
+        updated += 1;
+        continue;
       }
       if (same && !existing.country && mapping.country) {
         store.put({
@@ -394,7 +398,7 @@ export async function applyMappings(
     added += 1;
   }
   await transactionDone(transaction);
-  return { added, conflicts };
+  return { added, updated, conflicts };
 }
 
 export async function removeMappings(keys, databasePromise = openDatabase()) {
@@ -419,6 +423,14 @@ export async function replaceLibrary(data, databasePromise = openDatabase()) {
     transaction.abort();
     throw error;
   }
+  await transactionDone(transaction);
+}
+
+export async function clearLibrary(databasePromise = openDatabase()) {
+  const database = await databasePromise;
+  const stores = ["dives", "profiles", "mappings", "imports", "settings"];
+  const transaction = database.transaction(stores, "readwrite");
+  stores.forEach((name) => transaction.objectStore(name).clear());
   await transactionDone(transaction);
 }
 

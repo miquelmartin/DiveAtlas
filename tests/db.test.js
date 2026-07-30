@@ -3,6 +3,7 @@ import {
   addDive,
   addDiveSource,
   applyMappings,
+  clearLibrary,
   getAll,
   getRecord,
   hasSourceHash,
@@ -104,7 +105,7 @@ describe("IndexedDB persistence", () => {
     expect(await hasSourceHash("legacy-source", database)).toBe(false);
   });
 
-  it("never overwrites a conflicting mapping during merge", async () => {
+  it("replaces a conflicting mapping with the newest imported coordinates", async () => {
     const database = await testDatabase();
     const first = {
       key: "a\u001fb",
@@ -117,7 +118,39 @@ describe("IndexedDB persistence", () => {
     await applyMappings([first], "merge", database);
     const result = await applyMappings([{ ...first, latitude: 11 }], "merge", database);
     expect(result.conflicts).toHaveLength(1);
-    expect(await getRecord("mappings", first.key, database)).toEqual(first);
+    expect(result.updated).toBe(1);
+    expect(await getRecord("mappings", first.key, database)).toEqual({
+      ...first,
+      latitude: 11,
+    });
+  });
+
+  it("atomically clears every library store", async () => {
+    const database = await testDatabase();
+    const { dive, profile } = records();
+    await addDive(dive, profile, "source", database);
+    await applyMappings(
+      [
+        {
+          key: "a\u001fb",
+          location: "A",
+          site: "B",
+          latitude: 10,
+          longitude: 20,
+          confidence: "Exact",
+        },
+      ],
+      "merge",
+      database,
+    );
+
+    await clearLibrary(database);
+
+    await Promise.all(
+      ["dives", "profiles", "mappings", "imports", "settings"].map(async (store) => {
+        expect(await getAll(store, database)).toEqual([]);
+      }),
+    );
   });
 
   it("atomically migrates v1 dive, profile, and import identity references", async () => {

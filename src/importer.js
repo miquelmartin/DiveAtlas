@@ -75,8 +75,10 @@ export async function importSources(
         results.push({
           type: issueCount ? "warning" : "success",
           filename: file.name,
-          message: `${applied.added} mapping(s) imported${
-            issueCount ? `; ${issueCount} duplicate, conflict, or invalid row(s) reported` : ""
+          message: `${applied.added} mapping(s) added${
+            applied.updated ? `; ${applied.updated} existing mapping(s) updated` : ""
+          }${
+            issueCount ? `; ${issueCount} duplicate, replaced, or invalid row(s) reported` : ""
           }`,
           issues: [
             ...processed.parsed.issues.map((issue) => `Line ${issue.line}: ${issue.message}`),
