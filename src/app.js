@@ -871,10 +871,12 @@ function registerEvents() {
   );
   elements["dive-files"].addEventListener("change", (event) => {
     setDiveFiles(event.target.files);
+    event.target.value = "";
     if (state.pendingDiveFiles.length) void handleDiveImport();
   });
   elements["coordinate-file"].addEventListener("change", (event) => {
     setCoordinateFiles(event.target.files);
+    event.target.value = "";
     if (state.pendingCoordinateFile) void handleCoordinateImport();
   });
   elements["cancel-dive-import"].addEventListener("click", () => {

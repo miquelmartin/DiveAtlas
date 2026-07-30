@@ -120,11 +120,11 @@
             <section class="import-panel" aria-labelledby="dive-import-heading">
               <h4 id="dive-import-heading">Import dives</h4>
               <p>Select up to hundreds of `.uddf` files. Import starts immediately and reads them one at a time.</p>
-              <label id="dive-drop-zone" class="drop-zone" for="dive-files">
-                <strong>Choose dive files</strong>
-                <span>or drop `.uddf` files here</span>
-                <input id="dive-files" type="file" multiple accept=".uddf">
-              </label>
+              <div id="dive-drop-zone" class="drop-zone">
+                <strong>Add dive files</strong>
+                <span>Drop `.uddf` files here, or use the file picker.</span>
+                <input id="dive-files" class="native-file-picker" type="file" multiple aria-label="Choose dive files">
+              </div>
               <p id="dive-selection-status" class="selection-status" aria-live="polite">No dive files selected.</p>
               <button id="cancel-dive-import" type="button" disabled>Cancel after current file</button>
               <div id="dive-progress-wrap" class="progress-wrap" hidden>
@@ -140,11 +140,11 @@
             <section class="import-panel" aria-labelledby="coordinate-import-heading">
               <h4 id="coordinate-import-heading">Import coordinates</h4>
               <p>Select one CSV matching the Location/Site coordinate contract. Import starts immediately.</p>
-              <label id="coordinate-drop-zone" class="drop-zone" for="coordinate-file">
-                <strong>Choose a coordinate CSV</strong>
-                <span>or drop one `.csv` file here</span>
-                <input id="coordinate-file" type="file" accept=".csv,text/csv">
-              </label>
+              <div id="coordinate-drop-zone" class="drop-zone">
+                <strong>Add a coordinate CSV</strong>
+                <span>Drop one `.csv` file here, or use the file picker.</span>
+                <input id="coordinate-file" class="native-file-picker" type="file" aria-label="Choose a coordinate CSV">
+              </div>
               <p id="coordinate-selection-status" class="selection-status" aria-live="polite">No coordinate file selected.</p>
               <p>New rows are merged into the coordinate table. Matching rows replace older coordinates.</p>
               <div id="coordinate-import-results" class="results" aria-live="polite"></div>
@@ -218,7 +218,7 @@
           </div>
           <div class="button-row">
             <button id="download-backup" class="primary" type="button">Download backup</button>
-            <label class="file-button">Choose backup <input id="backup-file" type="file" accept=".json,application/json"></label>
+            <input id="backup-file" class="native-file-picker backup-file-picker" type="file" aria-label="Choose a DiveAtlas backup">
           </div>
           <fieldset class="inline-options">
             <legend>Restore behavior</legend>

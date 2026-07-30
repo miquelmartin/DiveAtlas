@@ -286,8 +286,8 @@ main {
 }
 
 .drop-zone {
-  position: relative;
   display: grid;
+  gap: 0.35rem;
   place-items: center;
   min-height: 4.5rem;
   margin: 0.5rem 0 0.25rem;
@@ -316,22 +316,33 @@ main {
   font-weight: 600;
 }
 
-.drop-zone input {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  inline-size: 100%;
-  block-size: 100%;
-  opacity: 0;
+.native-file-picker {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.25rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.25rem;
+  background: var(--cp-surface);
+  color: var(--cp-text-muted);
+  font: inherit;
   cursor: pointer;
 }
 
-.file-button input {
-  position: absolute;
-  inline-size: 1px;
-  block-size: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
+.native-file-picker::file-selector-button {
+  min-height: 2.1rem;
+  margin-right: 0.5rem;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--cp-border-strong);
+  border-radius: 0.2rem;
+  background: var(--cp-surface-soft);
+  color: var(--cp-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.backup-file-picker {
+  max-width: 24rem;
 }
 
 .inline-options {

@@ -99,22 +99,44 @@ test("dedicated file pickers show selection, results, and refreshed tables", asy
 test("mobile file selection imports and the three view panels stack", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const errors = await openProductionShell(page);
-  const pickerGeometry = await page.locator("#dive-drop-zone").evaluate((zone) => {
-    const input = zone.querySelector("input");
-    const zoneBox = zone.getBoundingClientRect();
-    const inputBox = input.getBoundingClientRect();
-    return {
-      widthDifference: Math.abs(zoneBox.width - inputBox.width),
-      heightDifference: Math.abs(zoneBox.height - inputBox.height),
-    };
-  });
-  expect(pickerGeometry.widthDifference).toBeLessThanOrEqual(2);
-  expect(pickerGeometry.heightDifference).toBeLessThanOrEqual(2);
-
-  await page.locator("#dive-files").setInputFiles(representative);
+  const divePicker = page.locator("#dive-files");
+  await expect(divePicker).toBeVisible();
+  await expect(divePicker).toHaveAttribute("multiple", "");
+  await expect(divePicker).not.toHaveAttribute("accept", /.+/);
+  const [diveChooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    divePicker.click(),
+  ]);
+  await diveChooser.setFiles(representative);
   await expect(page.locator("#dive-import-results")).toContainText("1 dive(s) imported");
-  await page.locator("#coordinate-file").setInputFiles(mappings);
+  const [repeatDiveChooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    divePicker.click(),
+  ]);
+  await repeatDiveChooser.setFiles(representative);
+  await expect(page.locator("#dive-import-results")).toContainText(
+    "Exact source already imported; skipped",
+  );
+  const coordinatePicker = page.locator("#coordinate-file");
+  await expect(coordinatePicker).toBeVisible();
+  const [coordinateChooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    coordinatePicker.click(),
+  ]);
+  await coordinateChooser.setFiles(mappings);
   await expect(page.locator("#coordinate-import-results")).toContainText("2 mapping(s) added");
+  const backupPicker = page.locator("#backup-file");
+  await expect(backupPicker).toBeVisible();
+  const [backupChooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    backupPicker.click(),
+  ]);
+  await backupChooser.setFiles({
+    name: "mobile-backup.json",
+    mimeType: "application/json",
+    buffer: Buffer.from("{}"),
+  });
+  await expect(page.locator("#restore-backup")).toBeEnabled();
   const dataColumns = await page.locator(".data-table-grid").evaluate(
     (grid) => getComputedStyle(grid).gridTemplateColumns.split(" ").length,
   );
