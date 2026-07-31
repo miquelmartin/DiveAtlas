@@ -569,13 +569,31 @@ async function renderSelectedDiveDetails() {
   const selectionSummary = document.createElement("p");
   selectionSummary.className = "selection-count-summary";
   const selectedCount = document.createElement("span");
-  selectedCount.className = "selection-count";
-  selectedCount.textContent = `${dives.length} dive${dives.length === 1 ? "" : "s"} selected`;
+  selectedCount.className = "selection-count selection-count-series";
+  const selectedKey = document.createElement("span");
+  selectedKey.className = "selection-count-key";
+  selectedKey.setAttribute("aria-hidden", "true");
+  selectedCount.append(
+    selectedKey,
+    document.createTextNode(
+      `${dives.length} dive${dives.length === 1 ? "" : "s"} selected`,
+    ),
+  );
+  const libraryCount = document.createElement("span");
+  libraryCount.className = "library-count selection-count-series";
+  const libraryKey = document.createElement("span");
+  libraryKey.className = "selection-count-key";
+  libraryKey.setAttribute("aria-hidden", "true");
+  libraryCount.append(
+    libraryKey,
+    document.createTextNode(
+      `out of ${state.dives.length} dive${state.dives.length === 1 ? "" : "s"}`,
+    ),
+  );
   selectionSummary.append(
     selectedCount,
-    document.createTextNode(
-      ` out of ${state.dives.length} dive${state.dives.length === 1 ? "" : "s"}`,
-    ),
+    document.createTextNode(" "),
+    libraryCount,
   );
   const detailsElement = dives.length === 1 ? document.createElement("dl") : null;
   if (dives.length === 1) {
@@ -625,14 +643,13 @@ async function renderSelectedDiveDetails() {
 }
 
 async function toggleViewDives(ids) {
-  const clearedPlotSelection = clearPlotSelection();
+  clearPlotSelection();
   const allSelected = ids.every((id) => state.selectedViewDives.has(id));
   ids.forEach((id) =>
     allSelected ? state.selectedViewDives.delete(id) : state.selectedViewDives.add(id),
   );
   await renderSelectedDiveDetails();
-  if (clearedPlotSelection) state.mapBounds = null;
-  renderView({ updateMap: clearedPlotSelection, fitMap: clearedPlotSelection });
+  renderView({ updateMap: false });
 }
 
 async function selectViewDives(

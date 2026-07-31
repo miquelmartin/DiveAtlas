@@ -571,24 +571,34 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     "3 dives selected out of 4 dives",
   );
   await expect(page.locator("#dive-detail > p")).toHaveCount(1);
-  const selectionSummaryColor = await page.locator(".selection-count").evaluate((count) => {
-    const probe = document.createElement("span");
-    probe.style.color = "var(--cp-selection)";
-    const textProbe = document.createElement("span");
-    textProbe.style.color = "var(--cp-text)";
-    document.body.append(probe, textProbe);
-    const colors = {
-      selected: getComputedStyle(count).color,
-      expected: getComputedStyle(probe).color,
-      remainder: getComputedStyle(count.parentElement).color,
-      expectedRemainder: getComputedStyle(textProbe).color,
-    };
-    probe.remove();
-    textProbe.remove();
-    return colors;
-  });
-  expect(selectionSummaryColor.selected).toBe(selectionSummaryColor.expected);
-  expect(selectionSummaryColor.remainder).toBe(selectionSummaryColor.expectedRemainder);
+  const selectionSummaryColors = await page
+    .locator(".selection-count-summary")
+    .evaluate((summary) => {
+      const selectedProbe = document.createElement("span");
+      selectedProbe.style.color = "var(--cp-selection)";
+      const allProbe = document.createElement("span");
+      allProbe.style.color = "var(--cp-accent)";
+      document.body.append(selectedProbe, allProbe);
+      const selected = summary.querySelector(".selection-count");
+      const all = summary.querySelector(".library-count");
+      const colors = {
+        selected: getComputedStyle(selected).color,
+        expectedSelected: getComputedStyle(selectedProbe).color,
+        all: getComputedStyle(all).color,
+        expectedAll: getComputedStyle(allProbe).color,
+        selectedKey: getComputedStyle(
+          selected.querySelector(".selection-count-key"),
+        ).backgroundColor,
+        allKey: getComputedStyle(all.querySelector(".selection-count-key")).backgroundColor,
+      };
+      selectedProbe.remove();
+      allProbe.remove();
+      return colors;
+    });
+  expect(selectionSummaryColors.selected).toBe(selectionSummaryColors.expectedSelected);
+  expect(selectionSummaryColors.all).toBe(selectionSummaryColors.expectedAll);
+  expect(selectionSummaryColors.selectedKey).toBe(selectionSummaryColors.expectedSelected);
+  expect(selectionSummaryColors.allKey).toBe(selectionSummaryColors.expectedAll);
   await expect(page.locator(".monthly-histogram .histogram-bar-all")).toHaveCount(1);
   await expect(page.locator(".monthly-histogram .histogram-bar-selected")).toHaveCount(1);
   await expect(page.locator(".donut-total")).toHaveText("4");
@@ -751,6 +761,30 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
       .map((tile) => tile.src)
       .sort(),
   }));
+  await page.locator(".dive-row.is-selected").first().click();
+  await expect(page.locator("#filter-plot-selection")).not.toBeChecked();
+  await expect(page.locator("#dive-detail .selection-count-summary")).toHaveText(
+    "3 dives selected out of 4 dives",
+  );
+  const mapViewAfterRowToggle = await page.locator("#map").evaluate((map) => ({
+    transform: map.querySelector(".leaflet-map-pane").style.transform,
+    tileSources: [...map.querySelectorAll(".leaflet-tile")]
+      .map((tile) => tile.src)
+      .sort(),
+  }));
+  expect(mapViewAfterRowToggle).toEqual(mapViewAfterHistogram);
+  await page
+    .locator(".distribution-chart")
+    .filter({ has: page.getByRole("heading", { name: "Duration" }) })
+    .locator(".histogram-hit-area")
+    .filter({ has: page.locator("title", { hasText: "All dives: 4" }) })
+    .click();
+  const mapViewBeforeScatter = await page.locator("#map").evaluate((map) => ({
+    transform: map.querySelector(".leaflet-map-pane").style.transform,
+    tileSources: [...map.querySelectorAll(".leaflet-tile")]
+      .map((tile) => tile.src)
+      .sort(),
+  }));
   await page.locator(".scatter-hit-area").last().click();
   await expect(page.locator("#filter-plot-selection")).toBeChecked();
   await expect(page.locator("#dive-detail dl")).toBeVisible();
@@ -762,7 +796,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
       .map((tile) => tile.src)
       .sort(),
   }));
-  expect(mapViewAfterScatter).toEqual(mapViewAfterHistogram);
+  expect(mapViewAfterScatter).toEqual(mapViewBeforeScatter);
   await page.locator("#filter-plot-selection").uncheck();
   await expect(page.locator(".dive-row")).toHaveCount(3);
   await page.locator(".donut-segment.donut-decompression").click({
