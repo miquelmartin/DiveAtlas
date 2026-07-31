@@ -534,10 +534,11 @@ function renderSelectionStats() {
   renderSelectionStatistics(elements["selection-stats"], dives, {
     ...selectedDateExtent(),
     libraryDives: state.dives,
-    onSelectDives: (selectedDives) => {
+    onSelectDives: (selectedDives, { fitMap = true } = {}) => {
       void selectViewDives(selectedDives.map((dive) => dive.id), {
-        fitMap: true,
+        fitMap,
         fromPlot: true,
+        updateMap: true,
       });
     },
   });
@@ -624,7 +625,10 @@ async function toggleViewDives(ids) {
   renderView({ updateMap: clearedPlotSelection, fitMap: clearedPlotSelection });
 }
 
-async function selectViewDives(ids, { fitMap = false, fromPlot = false } = {}) {
+async function selectViewDives(
+  ids,
+  { fitMap = false, fromPlot = false, updateMap = fitMap } = {},
+) {
   state.selectedViewDives = new Set(ids);
   if (fromPlot && ids.length) {
     state.plotSelectedDives = new Set(ids);
@@ -634,9 +638,9 @@ async function selectViewDives(ids, { fitMap = false, fromPlot = false } = {}) {
   }
   if (fitMap) state.mapBounds = null;
   renderView({
-    updateMap: fitMap,
+    updateMap,
     fitMap,
-    mapDiveIds: fitMap ? state.selectedViewDives : null,
+    mapDiveIds: updateMap ? state.selectedViewDives : null,
   });
   await renderSelectedDiveDetails();
 }

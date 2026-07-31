@@ -4,7 +4,7 @@ import { renderSelectionStatistics } from "../src/statistics-chart.js";
 describe("selected dive statistics", () => {
   it("renders a dive-type donut and metric distributions", () => {
     const container = document.createElement("div");
-    const selectedBins = [];
+    const selectionEvents = [];
     renderSelectionStatistics(
       container,
       [
@@ -68,7 +68,7 @@ describe("selected dive statistics", () => {
             maxGf99: 110,
           },
         ],
-        onSelectDives: (dives) => selectedBins.push(dives),
+        onSelectDives: (dives, options) => selectionEvents.push({ dives, options }),
       },
     );
 
@@ -119,7 +119,17 @@ describe("selected dive statistics", () => {
         "Maximum CNS",
         "Maximum GF99",
       ]);
-    expect([...container.children].filter((child) => child.tagName === "SECTION")).toHaveLength(8);
+    expect([...container.children].filter((child) => child.tagName === "SECTION")).toHaveLength(9);
+    expect(container.firstElementChild).toBe(container.querySelector(".library-totals"));
+    expect(
+      [...container.querySelectorAll(".library-totals h3")].map((item) => item.textContent),
+    ).toEqual(["Cumulative descent", "Total dive time"]);
+    expect(
+      [...container.querySelectorAll(".library-totals dt")].map((item) => item.textContent),
+    ).toEqual(["All dives", "Selected dives", "All dives", "Selected dives"]);
+    expect(
+      [...container.querySelectorAll(".library-totals dd")].map((item) => item.textContent),
+    ).toEqual(["100.0 m", "50.0 m", "3.7 hours", "1.7 hours"]);
     expect(container.querySelectorAll(".distribution-chart .histogram-bar-all")).toHaveLength(100);
     expect(container.querySelectorAll(".distribution-chart .histogram-bar-selected")).toHaveLength(
       100,
@@ -180,17 +190,21 @@ describe("selected dive statistics", () => {
     expect(tooltip.textContent).toContain("All dives:");
     expect(tooltip.textContent).toContain("Selected dives:");
     firstDepthBin.dispatchEvent(new MouseEvent("click"));
-    expect(selectedBins.at(-1)).toEqual([]);
+    expect(selectionEvents.at(-1).dives).toEqual([]);
+    expect(selectionEvents.at(-1).options).toBeUndefined();
     const populatedDepthBin = [...container.querySelectorAll(".distribution-chart .histogram-hit-area")]
       .find((bin) => bin.getAttribute("aria-label").includes("All dives: 1"));
     populatedDepthBin.dispatchEvent(new MouseEvent("click"));
-    expect(selectedBins.at(-1)).toHaveLength(1);
+    expect(selectionEvents.at(-1).dives).toHaveLength(1);
+    expect(selectionEvents.at(-1).options).toBeUndefined();
     expect(populatedDepthBin.getAttribute("role")).toBe("button");
     container.querySelector(".donut-decompression").dispatchEvent(new MouseEvent("click"));
-    expect(selectedBins.at(-1)).toHaveLength(1);
+    expect(selectionEvents.at(-1).dives).toHaveLength(1);
+    expect(selectionEvents.at(-1).options).toBeUndefined();
     expect(container.querySelector(".donut-decompression").getAttribute("role")).toBe("button");
     container.querySelector(".scatter-hit-area").dispatchEvent(new MouseEvent("click"));
-    expect(selectedBins.at(-1)).toHaveLength(1);
+    expect(selectionEvents.at(-1).dives).toHaveLength(1);
+    expect(selectionEvents.at(-1).options).toEqual({ fitMap: false });
     expect(container.querySelector(".scatter-hit-area").getAttribute("role")).toBe("button");
     expect(container.querySelector(".scatter-point-all").getAttribute("r")).toBe("2.25");
     firstDepthBin.dispatchEvent(new PointerEvent("pointerleave"));
@@ -224,7 +238,10 @@ describe("selected dive statistics", () => {
 
     renderSelectionStatistics(container, [], { libraryDives });
 
-    expect([...container.children].filter((child) => child.tagName === "SECTION")).toHaveLength(8);
+    expect([...container.children].filter((child) => child.tagName === "SECTION")).toHaveLength(9);
+    expect(
+      [...container.querySelectorAll(".library-totals dd")].map((item) => item.textContent),
+    ).toEqual(["50.0 m", "0 m", "1.7 hours", "0 hours"]);
     expect(container.querySelector(".donut-total").textContent).toBe("2");
     expect(container.querySelectorAll(".donut-selection-segment")).toHaveLength(0);
     expect(container.querySelectorAll(".scatter-point-all")).toHaveLength(2);
@@ -235,6 +252,32 @@ describe("selected dive statistics", () => {
       ),
     ).toBe(true);
     expect(container.textContent).not.toContain("Select dives to see statistics");
+  });
+
+  it("formats totals in kilometres and day/hour units for one selected dive", () => {
+    const container = document.createElement("div");
+    const selectedDive = {
+      dateTime: "2025-01-01",
+      maxDepth: 750,
+      durationSeconds: 90_000,
+    };
+    renderSelectionStatistics(container, [selectedDive], {
+      libraryDives: [
+        selectedDive,
+        {
+          dateTime: "2025-01-02",
+          maxDepth: 500,
+          durationSeconds: 7_200,
+        },
+      ],
+    });
+
+    expect(
+      [...container.querySelectorAll(".library-totals dt")].map((item) => item.textContent),
+    ).toEqual(["All dives", "This dive", "All dives", "This dive"]);
+    expect(
+      [...container.querySelectorAll(".library-totals dd")].map((item) => item.textContent),
+    ).toEqual(["1.3 km", "750.0 m", "1 day 3 hours", "1 day 1 hour"]);
   });
 
   it("shows empty states for selected dives without profile summaries", () => {
