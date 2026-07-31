@@ -47,6 +47,19 @@ function markerDetails(dive, mapping) {
     </dl>`;
 }
 
+function updateMapAccessibleLabel() {
+  if (!map) return;
+  const selectedCount = [...markersByDiveId.values()].filter(
+    (marker) => marker.options.diveSelected,
+  ).length;
+  map
+    .getContainer()
+    .setAttribute(
+      "aria-label",
+      `Interactive map of ${markersByDiveId.size} mapped dives; ${selectedCount} selected`,
+    );
+}
+
 export function initializeMap(element, callbacks = {}) {
   if (!globalThis.L) {
     element.textContent = "Map library unavailable. Dive data remains available in the list.";
@@ -109,7 +122,10 @@ export function initializeMap(element, callbacks = {}) {
   });
 }
 
-export function renderMap(diveGroups, { fit = false, selectedDiveIds = new Set() } = {}) {
+export function renderMap(
+  diveGroups,
+  { fit = false, fitDiveIds = null, selectedDiveIds = new Set() } = {},
+) {
   if (!map || !markerLayer) return;
   markerLayer.clearLayers();
   markersByDiveId = new Map();
@@ -117,7 +133,7 @@ export function renderMap(diveGroups, { fit = false, selectedDiveIds = new Set()
   diveGroups.forEach(({ mapping, dives }) => {
     const coordinates = [mapping.latitude, mapping.longitude];
     dives.forEach((dive) => {
-      bounds.push(coordinates);
+      if (!fitDiveIds || fitDiveIds.has(dive.id)) bounds.push(coordinates);
       const selected = selectedDiveIds.has(dive.id);
       const marker = L.marker(coordinates, {
         icon: diveIcon(selected),
@@ -143,6 +159,7 @@ export function renderMap(diveGroups, { fit = false, selectedDiveIds = new Set()
       markerLayer.addLayer(marker);
     });
   });
+  updateMapAccessibleLabel();
   if (fit && bounds.length) {
     programmaticMove = true;
     map.fitBounds(bounds, { padding: [24, 24], maxZoom: 11, animate: false });
@@ -162,6 +179,7 @@ export function updateMapSelection(selectedDiveIds) {
     element?.setAttribute("aria-label", `Dive ${marker.options.diveLabel}`);
   });
   markerLayer.refreshClusters?.();
+  updateMapAccessibleLabel();
 }
 
 function escapeHtml(value) {

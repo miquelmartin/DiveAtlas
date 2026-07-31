@@ -27,8 +27,6 @@ const state = {
   selectedMappings: new Set(),
   expandedMappingLocations: new Set(),
   selectedViewDives: new Set(),
-  plotSelectedDives: new Set(),
-  plotSelectionActive: false,
   mapBounds: null,
   showOutsideMap: false,
   cancelled: false,
@@ -90,8 +88,6 @@ const elements = Object.fromEntries(
     "date-range-label",
     "clear-filters",
     "show-outside-map",
-    "plot-selection-control",
-    "filter-plot-selection",
     "select-map-dives",
     "select-list-dives",
     "clear-view-dives",
@@ -505,15 +501,12 @@ function dateRangeFilters() {
 
 function currentViewDives() {
   const dates = dateRangeFilters();
-  const filtered = filterDives(state.dives, {
+  return filterDives(state.dives, {
     ...dates,
     search: elements["view-search"].value,
     minDepth: elements["min-depth"].value,
     minDuration: elements["min-duration"].value,
   });
-  return state.plotSelectionActive
-    ? filtered.filter((dive) => state.plotSelectedDives.has(dive.id))
-    : filtered;
 }
 
 function selectedDateExtent() {
@@ -537,7 +530,6 @@ function renderSelectionStats() {
     onSelectDives: (selectedDives, { fitMap = true } = {}) => {
       void selectViewDives(selectedDives.map((dive) => dive.id), {
         fitMap,
-        fromPlot: true,
         updateMap: true,
       });
     },
@@ -574,10 +566,10 @@ async function renderSelectedDiveDetails() {
   selectedKey.className = "selection-count-key";
   selectedKey.setAttribute("aria-hidden", "true");
   selectedCount.append(
-    selectedKey,
     document.createTextNode(
       `${dives.length} dive${dives.length === 1 ? "" : "s"} selected`,
     ),
+    selectedKey,
   );
   const libraryCount = document.createElement("span");
   libraryCount.className = "library-count selection-count-series";
@@ -585,10 +577,10 @@ async function renderSelectedDiveDetails() {
   libraryKey.className = "selection-count-key";
   libraryKey.setAttribute("aria-hidden", "true");
   libraryCount.append(
-    libraryKey,
     document.createTextNode(
-      `out of ${state.dives.length} dive${state.dives.length === 1 ? "" : "s"}`,
+      `out of ${state.dives.length}`,
     ),
+    libraryKey,
   );
   selectionSummary.append(
     selectedCount,
@@ -643,7 +635,6 @@ async function renderSelectedDiveDetails() {
 }
 
 async function toggleViewDives(ids) {
-  clearPlotSelection();
   const allSelected = ids.every((id) => state.selectedViewDives.has(id));
   ids.forEach((id) =>
     allSelected ? state.selectedViewDives.delete(id) : state.selectedViewDives.add(id),
@@ -654,35 +645,16 @@ async function toggleViewDives(ids) {
 
 async function selectViewDives(
   ids,
-  { fitMap = false, fromPlot = false, updateMap = fitMap } = {},
+  { fitMap = false, updateMap = fitMap } = {},
 ) {
   state.selectedViewDives = new Set(ids);
-  if (fromPlot && ids.length) {
-    state.plotSelectedDives = new Set(ids);
-    state.plotSelectionActive = true;
-  } else {
-    clearPlotSelection();
-  }
   if (fitMap) state.mapBounds = null;
   renderView({
     updateMap,
     fitMap,
-    mapDiveIds: updateMap ? state.selectedViewDives : null,
+    mapFitDiveIds: updateMap ? state.selectedViewDives : null,
   });
   await renderSelectedDiveDetails();
-}
-
-function clearPlotSelection() {
-  const changed = state.plotSelectionActive || state.plotSelectedDives.size > 0;
-  state.plotSelectedDives.clear();
-  state.plotSelectionActive = false;
-  return changed;
-}
-
-function updatePlotSelectionControl() {
-  const hasPlotSelection = state.plotSelectedDives.size > 0;
-  elements["plot-selection-control"].hidden = !hasPlotSelection;
-  elements["filter-plot-selection"].checked = state.plotSelectionActive;
 }
 
 function currentMapDives() {
@@ -709,7 +681,7 @@ async function handleMapBoundsChange(bounds) {
   if (autoSelect) await renderSelectedDiveDetails();
 }
 
-function renderView({ updateMap = true, fitMap = false, mapDiveIds = null } = {}) {
+function renderView({ updateMap = true, fitMap = false, mapFitDiveIds = null } = {}) {
   const baseDives = currentViewDives();
   const lookup = mappingLookup();
   const divesInMap = filterDivesToBounds(baseDives, lookup, state.mapBounds);
@@ -728,7 +700,6 @@ function renderView({ updateMap = true, fitMap = false, mapDiveIds = null } = {}
       : `${dives.length} dive${dives.length === 1 ? "" : "s"}`;
   elements["show-outside-map"].disabled = outsideCount === 0;
   elements["show-outside-map"].checked = showOutside;
-  updatePlotSelectionControl();
   elements["select-map-dives"].disabled = currentMapDives().length === 0;
   elements["select-list-dives"].disabled = dives.length === 0;
   elements["clear-view-dives"].disabled = state.selectedViewDives.size === 0;
@@ -781,12 +752,8 @@ function renderView({ updateMap = true, fitMap = false, mapDiveIds = null } = {}
     message.textContent = "No dives match these filters.";
     elements["view-dive-list"].append(message);
   }
-
   const groups = new Map();
-  const mapDives = mapDiveIds
-    ? state.dives.filter((dive) => mapDiveIds.has(dive.id))
-    : baseDives;
-  mapDives.forEach((dive) => {
+  baseDives.forEach((dive) => {
     const mapping = lookup.get(dive.mappingKey);
     if (!mapping) return;
     if (!groups.has(mapping.key)) groups.set(mapping.key, { mapping, dives: [] });
@@ -795,6 +762,7 @@ function renderView({ updateMap = true, fitMap = false, mapDiveIds = null } = {}
   if (updateMap) {
     renderMap([...groups.values()], {
       fit: fitMap,
+      fitDiveIds: mapFitDiveIds,
       selectedDiveIds: state.selectedViewDives,
     });
   } else {
@@ -875,10 +843,6 @@ async function refreshLibrary() {
   state.selectedViewDives = new Set(
     [...state.selectedViewDives].filter((id) => diveIds.has(id)),
   );
-  state.plotSelectedDives = new Set(
-    [...state.plotSelectedDives].filter((id) => diveIds.has(id)),
-  );
-  if (!state.plotSelectedDives.size) state.plotSelectionActive = false;
   state.mapBounds = null;
   configureDateRange();
   renderSummary();
@@ -987,7 +951,6 @@ function registerEvents() {
     state.selectedDives.clear();
     state.selectedMappings.clear();
     state.selectedViewDives.clear();
-    clearPlotSelection();
     await refreshLibrary();
     setWorkspace("data");
   });
@@ -1055,37 +1018,27 @@ function registerEvents() {
     updateDateRangeLabel();
     state.mapBounds = null;
     state.showOutsideMap = false;
-    clearPlotSelection();
     renderView({ fitMap: true });
   });
   elements["show-outside-map"].addEventListener("change", (event) => {
     state.showOutsideMap = event.currentTarget.checked;
     renderView({ updateMap: false });
   });
-  elements["filter-plot-selection"].addEventListener("change", (event) => {
-    state.plotSelectionActive = event.currentTarget.checked && state.plotSelectedDives.size > 0;
-    state.mapBounds = null;
-    renderView({ fitMap: true });
-  });
   elements["select-map-dives"].addEventListener("click", async () => {
     const ids = currentMapDives().map((dive) => dive.id);
-    clearPlotSelection();
     state.selectedViewDives = new Set(ids);
     renderView({ updateMap: false });
     await renderSelectedDiveDetails();
   });
   elements["select-list-dives"].addEventListener("click", async () => {
     const ids = currentListDives().map((dive) => dive.id);
-    clearPlotSelection();
     state.selectedViewDives = new Set(ids);
     renderView({ updateMap: false });
     await renderSelectedDiveDetails();
   });
   elements["clear-view-dives"].addEventListener("click", async () => {
-    const clearedPlotSelection = clearPlotSelection();
     state.selectedViewDives.clear();
-    if (clearedPlotSelection) state.mapBounds = null;
-    renderView({ updateMap: clearedPlotSelection, fitMap: clearedPlotSelection });
+    renderView({ updateMap: false });
     await renderSelectedDiveDetails();
   });
 }

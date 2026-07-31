@@ -825,11 +825,6 @@ tbody tr:hover {
   gap: 0.2rem;
 }
 
-.dive-selection-actions #plot-selection-control {
-  margin-left: 0.25rem;
-  white-space: nowrap;
-}
-
 .clear-filters-button {
   position: absolute;
   top: 0.2rem;

@@ -384,6 +384,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     .replace('id="synthetic-dive-42"', 'id="far"')
     .replace("<divenumber>42</divenumber>", "<divenumber>44</divenumber>")
     .replace("<datetime>2025-06-15T09:30:00Z</datetime>", "<datetime>2025-06-17T09:30:00Z</datetime>")
+    .replace("<diveduration>180</diveduration>", "<diveduration>240</diveduration>")
     .replace("<name>Blue Wall</name>", "<name>Far Reef</name>");
   const profileless = first
     .replace('id="synthetic-dive-42"', 'id="profileless"')
@@ -459,7 +460,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     "Japan",
   ]);
   await expect(page.locator(".dive-row").first().locator(".dive-stats")).toHaveText(
-    "2025-06-17 · 24.2 m · 3 min",
+    "2025-06-17 · 24.2 m · 4 min",
   );
   await expect(page.locator("#view-dive-list")).not.toContainText("UNKNOWN");
   const showOutsideMap = page.getByRole("checkbox", { name: "Show dives outside the map" });
@@ -511,7 +512,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator("#profile-chart .profile-empty")).toHaveCSS("place-items", "center");
   await expect(page.locator("#dive-detail")).toContainText("Unmapped Cove");
   await expect(page.locator("#dive-detail .selection-count-summary")).toHaveText(
-    "1 dive selected out of 4 dives",
+    "1 dive selected out of 4",
   );
   await expect(page.locator("#dive-detail > p")).toHaveCount(2);
   await expect(page.locator("#dive-detail")).toContainText("No-decompression");
@@ -568,7 +569,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   });
   expect(selectionColor.selected).toBe(selectionColor.expected);
   await expect(page.locator("#dive-detail .selection-count-summary")).toHaveText(
-    "3 dives selected out of 4 dives",
+    "3 dives selected out of 4",
   );
   await expect(page.locator("#dive-detail > p")).toHaveCount(1);
   const selectionSummaryColors = await page
@@ -590,6 +591,9 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
           selected.querySelector(".selection-count-key"),
         ).backgroundColor,
         allKey: getComputedStyle(all.querySelector(".selection-count-key")).backgroundColor,
+        keysFollowText:
+          selected.lastElementChild.matches(".selection-count-key") &&
+          all.lastElementChild.matches(".selection-count-key"),
       };
       selectedProbe.remove();
       allProbe.remove();
@@ -599,6 +603,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   expect(selectionSummaryColors.all).toBe(selectionSummaryColors.expectedAll);
   expect(selectionSummaryColors.selectedKey).toBe(selectionSummaryColors.expectedSelected);
   expect(selectionSummaryColors.allKey).toBe(selectionSummaryColors.expectedAll);
+  expect(selectionSummaryColors.keysFollowText).toBe(true);
   await expect(page.locator(".monthly-histogram .histogram-bar-all")).toHaveCount(1);
   await expect(page.locator(".monthly-histogram .histogram-bar-selected")).toHaveCount(1);
   await expect(page.locator(".donut-total")).toHaveText("4");
@@ -741,30 +746,40 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   });
   expect(histogramColors.all).toBe(histogramColors.expectedAll);
   expect(histogramColors.selected).toBe(histogramColors.expectedSelected);
+  const mapViewBeforeHistogram = await page.locator("#map").evaluate((map) => ({
+    transform: map.querySelector(".leaflet-map-pane").style.transform,
+    tileSources: [...map.querySelectorAll(".leaflet-tile")]
+      .map((tile) => tile.src)
+      .sort(),
+  }));
   await page
     .locator(".distribution-chart")
     .filter({ has: page.getByRole("heading", { name: "Duration" }) })
     .locator(".histogram-hit-area")
-    .filter({ has: page.locator("title", { hasText: "All dives: 4" }) })
+    .filter({ has: page.locator("title", { hasText: "All dives: 3" }) })
     .click();
   await expect(page.locator("#dive-detail .selection-count-summary")).toHaveText(
-    "4 dives selected out of 4 dives",
+    "3 dives selected out of 4",
   );
   await expect(page.locator(".marker-cluster.all-selected-dives")).toHaveCount(1);
-  await expect(
-    page.locator(".dive-selection-actions > #plot-selection-control"),
-  ).toBeVisible();
-  await expect(page.locator("#filter-plot-selection")).toBeChecked();
+  await expect(page.locator("#plot-selection-control, #filter-plot-selection")).toHaveCount(0);
+  await expect(page.locator(".dive-row")).toHaveCount(3);
+  await expect(page.locator(".dive-row.is-selected")).toHaveCount(2);
+  await expect(page.locator("#view-dive-list")).toContainText("Far Reef");
+  await expect(page.locator("#map")).toHaveAttribute(
+    "aria-label",
+    "Interactive map of 3 mapped dives; 2 selected",
+  );
   const mapViewAfterHistogram = await page.locator("#map").evaluate((map) => ({
     transform: map.querySelector(".leaflet-map-pane").style.transform,
     tileSources: [...map.querySelectorAll(".leaflet-tile")]
       .map((tile) => tile.src)
       .sort(),
   }));
+  expect(mapViewAfterHistogram).not.toEqual(mapViewBeforeHistogram);
   await page.locator(".dive-row.is-selected").first().click();
-  await expect(page.locator("#filter-plot-selection")).not.toBeChecked();
   await expect(page.locator("#dive-detail .selection-count-summary")).toHaveText(
-    "3 dives selected out of 4 dives",
+    "2 dives selected out of 4",
   );
   const mapViewAfterRowToggle = await page.locator("#map").evaluate((map) => ({
     transform: map.querySelector(".leaflet-map-pane").style.transform,
@@ -777,7 +792,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     .locator(".distribution-chart")
     .filter({ has: page.getByRole("heading", { name: "Duration" }) })
     .locator(".histogram-hit-area")
-    .filter({ has: page.locator("title", { hasText: "All dives: 4" }) })
+    .filter({ has: page.locator("title", { hasText: "All dives: 3" }) })
     .click();
   const mapViewBeforeScatter = await page.locator("#map").evaluate((map) => ({
     transform: map.querySelector(".leaflet-map-pane").style.transform,
@@ -786,10 +801,13 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
       .sort(),
   }));
   await page.locator(".scatter-hit-area").last().click();
-  await expect(page.locator("#filter-plot-selection")).toBeChecked();
   await expect(page.locator("#dive-detail dl")).toBeVisible();
-  await expect(page.locator(".dive-row")).toHaveCount(1);
-  await expect(page.locator("#map .dive-map-marker.is-selected")).toHaveCount(1);
+  await expect(page.locator(".dive-row")).toHaveCount(3);
+  await expect(page.locator(".dive-row.is-selected")).toHaveCount(1);
+  await expect(page.locator("#map")).toHaveAttribute(
+    "aria-label",
+    "Interactive map of 3 mapped dives; 1 selected",
+  );
   const mapViewAfterScatter = await page.locator("#map").evaluate((map) => ({
     transform: map.querySelector(".leaflet-map-pane").style.transform,
     tileSources: [...map.querySelectorAll(".leaflet-tile")]
@@ -797,16 +815,12 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
       .sort(),
   }));
   expect(mapViewAfterScatter).toEqual(mapViewBeforeScatter);
-  await page.locator("#filter-plot-selection").uncheck();
-  await expect(page.locator(".dive-row")).toHaveCount(3);
   await page.locator(".donut-segment.donut-decompression").click({
     position: { x: 61, y: 32 },
   });
   await expect(page.locator("#dive-detail .selection-count-summary")).toHaveText(
-    "3 dives selected out of 4 dives",
+    "3 dives selected out of 4",
   );
-  await expect(page.locator("#filter-plot-selection")).toBeChecked();
-  await page.locator("#filter-plot-selection").uncheck();
   const firstMonthlyBin = page.locator(".monthly-histogram .histogram-hit-area").first();
   await firstMonthlyBin.hover();
   await expect(page.locator(".monthly-histogram .histogram-tooltip")).toContainText("All dives:");
@@ -913,7 +927,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator("#profile-chart .profile-line")).toHaveCount(1);
   await page.getByRole("button", { name: /Dive 42,/ }).click();
   await expect(page.locator("#dive-detail .selection-count-summary")).toHaveText(
-    "2 dives selected out of 4 dives",
+    "2 dives selected out of 4",
   );
   await expect(page.locator("#profile-chart .profile-line")).toHaveCount(2);
   await expect(page.getByRole("heading", { name: "Depth Profile" })).toBeVisible();
