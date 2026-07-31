@@ -142,10 +142,8 @@ describe("selected dive statistics", () => {
     expect(container.querySelector(".monthly-histogram svg").getAttribute("aria-label")).toContain(
       "from 2025-01 to 2025-03",
     );
-    expect(container.querySelector(".histogram-legend").textContent).toBe(
-      "All divesSelected dives",
-    );
-    expect(container.lastElementChild).toBe(container.querySelector(".histogram-legend"));
+    expect(container.querySelector(".histogram-legend")).toBeNull();
+    expect(container.lastElementChild).toBe(container.querySelector(".scatter-chart"));
     expect(container.querySelectorAll(".scatter-point-all")).toHaveLength(3);
     expect(container.querySelectorAll(".scatter-point-selected")).toHaveLength(2);
     expect(container.querySelectorAll(".scatter-hit-area")).toHaveLength(3);

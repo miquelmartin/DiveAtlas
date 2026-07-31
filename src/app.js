@@ -562,11 +562,21 @@ async function renderSelectedDiveDetails() {
     return;
   }
   setSelectionPaneEmpty(false);
-  const description = document.createElement("p");
-  description.textContent =
-    dives.length === 1
-      ? `${dives[0].site}, ${dives[0].location}`
-      : `${dives.length} dives selected for profile comparison`;
+  const locationSummary = dives.length === 1 ? document.createElement("p") : null;
+  if (locationSummary) {
+    locationSummary.textContent = `${dives[0].site}, ${dives[0].location}`;
+  }
+  const selectionSummary = document.createElement("p");
+  selectionSummary.className = "selection-count-summary";
+  const selectedCount = document.createElement("span");
+  selectedCount.className = "selection-count";
+  selectedCount.textContent = `${dives.length} dive${dives.length === 1 ? "" : "s"} selected`;
+  selectionSummary.append(
+    selectedCount,
+    document.createTextNode(
+      ` out of ${state.dives.length} dive${state.dives.length === 1 ? "" : "s"}`,
+    ),
+  );
   const detailsElement = dives.length === 1 ? document.createElement("dl") : null;
   if (dives.length === 1) {
     const dive = dives[0];
@@ -599,7 +609,7 @@ async function renderSelectedDiveDetails() {
     });
   }
   elements["dive-detail"].replaceChildren(
-    ...[description, detailsElement].filter(Boolean),
+    ...[locationSummary, selectionSummary, detailsElement].filter(Boolean),
   );
   const profiles = await Promise.all(
     dives.map(async (dive) => ({
