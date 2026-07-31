@@ -1623,6 +1623,25 @@ tbody tr:hover {
   font-weight: 700;
 }
 
+.library-count {
+  color: var(--cp-accent);
+}
+
+.selection-count-series {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.selection-count-key {
+  width: 0.55rem;
+  height: 0.55rem;
+  flex: 0 0 auto;
+  border-radius: 0.1rem;
+  background: currentColor;
+}
+
 .dive-detail dl {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
