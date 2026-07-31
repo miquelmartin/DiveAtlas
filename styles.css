@@ -1369,7 +1369,7 @@ tbody tr:hover {
 
 .total-metric dd {
   margin: 0.1rem 0 0;
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 700;
 }
 
@@ -1481,36 +1481,6 @@ tbody tr:hover {
   overflow-wrap: anywhere;
   pointer-events: none;
   box-shadow: var(--cp-shadow);
-}
-
-.histogram-legend {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.65rem;
-  margin-top: 0.3rem;
-  color: var(--cp-text-muted);
-  font-size: 0.62rem;
-}
-
-.histogram-legend > span {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.histogram-key {
-  width: 0.65rem;
-  height: 0.65rem;
-  border-radius: 0.1rem;
-}
-
-.histogram-key-all {
-  background: var(--cp-accent);
-}
-
-.histogram-key-selected {
-  background: var(--cp-selection);
 }
 
 .selection-axis {
@@ -1648,6 +1618,11 @@ tbody tr:hover {
   margin-bottom: 0.3rem;
 }
 
+.selection-count {
+  color: var(--cp-selection);
+  font-weight: 700;
+}
+
 .dive-detail dl {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1712,8 +1687,7 @@ tbody tr:hover {
 
   .profile-chart,
   .selection-empty,
-  .library-totals,
-  .histogram-legend {
+  .library-totals {
     grid-column: 1;
   }
 }

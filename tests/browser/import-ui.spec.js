@@ -510,6 +510,10 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   );
   await expect(page.locator("#profile-chart .profile-empty")).toHaveCSS("place-items", "center");
   await expect(page.locator("#dive-detail")).toContainText("Unmapped Cove");
+  await expect(page.locator("#dive-detail .selection-count-summary")).toHaveText(
+    "1 dive selected out of 4 dives",
+  );
+  await expect(page.locator("#dive-detail > p")).toHaveCount(2);
   await expect(page.locator("#dive-detail")).toContainText("No-decompression");
   await selectionActions.getByRole("button", { name: "None" }).click();
   await showOutsideMap.uncheck();
@@ -563,7 +567,28 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     };
   });
   expect(selectionColor.selected).toBe(selectionColor.expected);
-  await expect(page.locator("#dive-detail")).toContainText("3 dives selected");
+  await expect(page.locator("#dive-detail .selection-count-summary")).toHaveText(
+    "3 dives selected out of 4 dives",
+  );
+  await expect(page.locator("#dive-detail > p")).toHaveCount(1);
+  const selectionSummaryColor = await page.locator(".selection-count").evaluate((count) => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--cp-selection)";
+    const textProbe = document.createElement("span");
+    textProbe.style.color = "var(--cp-text)";
+    document.body.append(probe, textProbe);
+    const colors = {
+      selected: getComputedStyle(count).color,
+      expected: getComputedStyle(probe).color,
+      remainder: getComputedStyle(count.parentElement).color,
+      expectedRemainder: getComputedStyle(textProbe).color,
+    };
+    probe.remove();
+    textProbe.remove();
+    return colors;
+  });
+  expect(selectionSummaryColor.selected).toBe(selectionSummaryColor.expected);
+  expect(selectionSummaryColor.remainder).toBe(selectionSummaryColor.expectedRemainder);
   await expect(page.locator(".monthly-histogram .histogram-bar-all")).toHaveCount(1);
   await expect(page.locator(".monthly-histogram .histogram-bar-selected")).toHaveCount(1);
   await expect(page.locator(".donut-total")).toHaveText("4");
@@ -582,8 +607,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator(".distribution-chart .histogram-bar-all")).toHaveCount(100);
   await expect(page.locator(".distribution-chart .histogram-bar-selected")).toHaveCount(100);
   await expect(page.locator(".histogram-chart")).toHaveCount(6);
-  await expect(page.locator(".histogram-legend")).toContainText("All dives");
-  await expect(page.locator(".histogram-legend")).toContainText("Selected dives");
+  await expect(page.locator(".histogram-legend")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Maximum GF99" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Depth Profile" })).toBeVisible();
   const statisticsLayout = await page.locator("#selection-stats").evaluate((container) => {
@@ -595,7 +619,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     const distribution = container.querySelector(".distribution-chart");
     const monthly = container.querySelector(".monthly-histogram").getBoundingClientRect();
     const diveTypes = container.querySelector(".dive-type-summary").getBoundingClientRect();
-    const legend = container.querySelector(".donut-legend");
+    const diveTypeLegend = container.querySelector(".donut-legend");
     const profileChart = document.querySelector("#profile-chart");
     const profileSvg = profileChart.querySelector("svg").getBoundingClientRect();
     const profileStyle = getComputedStyle(profileChart);
@@ -607,12 +631,11 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
       profileBackground,
       distributionBackground: getComputedStyle(distribution).backgroundColor,
       overviewColumnsAligned: Math.abs(diveTypes.width - monthly.width) < 2,
-      legendFits: legend.scrollWidth <= legend.clientWidth,
+      diveTypeLegendFits: diveTypeLegend.scrollWidth <= diveTypeLegend.clientWidth,
       chartCount: container.querySelectorAll(":scope > section").length,
-      legendAfterPlots:
-        container.querySelector(".histogram-legend") === container.lastElementChild &&
-        container.querySelector(".histogram-legend").getBoundingClientRect().right <=
-          plotGrid.getBoundingClientRect().right,
+      totalValueFontSize: Number.parseFloat(
+        getComputedStyle(container.querySelector(".total-metric dd")).fontSize,
+      ),
       histogramWidthRatio: (() => {
         const svg = distribution.querySelector("svg");
         const bars = [...svg.querySelectorAll(".histogram-bar-all")];
@@ -663,9 +686,10 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   expect(statisticsLayout.distributionBackground).toBe(statisticsLayout.background);
   expect(statisticsLayout.profileBackground).toBe(statisticsLayout.background);
   expect(statisticsLayout.overviewColumnsAligned).toBe(true);
-  expect(statisticsLayout.legendFits).toBe(true);
+  expect(statisticsLayout.diveTypeLegendFits).toBe(true);
   expect(statisticsLayout.chartCount).toBe(9);
-  expect(statisticsLayout.legendAfterPlots).toBe(true);
+  expect(statisticsLayout.totalValueFontSize).toBeGreaterThanOrEqual(12);
+  expect(statisticsLayout.totalValueFontSize).toBeLessThan(16);
   expect(statisticsLayout.histogramWidthRatio).toBeGreaterThan(0.95);
   expect(statisticsLayout.sharedViewBoxes).toBe(true);
   expect(statisticsLayout.borderlessCharts).toBe(true);
@@ -713,7 +737,9 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     .locator(".histogram-hit-area")
     .filter({ has: page.locator("title", { hasText: "All dives: 4" }) })
     .click();
-  await expect(page.locator("#dive-detail")).toContainText("4 dives selected");
+  await expect(page.locator("#dive-detail .selection-count-summary")).toHaveText(
+    "4 dives selected out of 4 dives",
+  );
   await expect(page.locator(".marker-cluster.all-selected-dives")).toHaveCount(1);
   await expect(
     page.locator(".dive-selection-actions > #plot-selection-control"),
@@ -742,7 +768,9 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await page.locator(".donut-segment.donut-decompression").click({
     position: { x: 61, y: 32 },
   });
-  await expect(page.locator("#dive-detail")).toContainText("3 dives selected");
+  await expect(page.locator("#dive-detail .selection-count-summary")).toHaveText(
+    "3 dives selected out of 4 dives",
+  );
   await expect(page.locator("#filter-plot-selection")).toBeChecked();
   await page.locator("#filter-plot-selection").uncheck();
   const firstMonthlyBin = page.locator(".monthly-histogram .histogram-hit-area").first();
@@ -843,7 +871,9 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await farMarker.click();
   await expect(page.locator("#profile-chart .profile-line")).toHaveCount(1);
   await page.getByRole("button", { name: /Dive 42,/ }).click();
-  await expect(page.locator("#dive-detail")).toContainText("2 dives selected");
+  await expect(page.locator("#dive-detail .selection-count-summary")).toHaveText(
+    "2 dives selected out of 4 dives",
+  );
   await expect(page.locator("#profile-chart .profile-line")).toHaveCount(2);
   await expect(page.getByRole("heading", { name: "Depth Profile" })).toBeVisible();
   await expect(page.locator(".profile-axis-label")).toHaveCount(10);

@@ -608,18 +608,6 @@ export function renderSelectionStatistics(
       .filter(Number.isFinite)
       .map(transform)
       .filter(Number.isFinite);
-  const legend = document.createElement("div");
-  legend.className = "histogram-legend";
-  [
-    ["histogram-key-all", "All dives"],
-    ["histogram-key-selected", "Selected dives"],
-  ].forEach(([className, label]) => {
-    const item = document.createElement("span");
-    const swatch = document.createElement("span");
-    swatch.className = `histogram-key ${className}`;
-    item.append(swatch, document.createTextNode(label));
-    legend.append(item);
-  });
   const charts = [
     renderMonthlyHistogram(dives, libraryDives, onSelectDives),
     renderDiveTypeDonut(dives, libraryDives, onSelectDives),
@@ -699,5 +687,5 @@ export function renderSelectionStatistics(
       onSelectDives,
     ),
   );
-  container.append(renderLibraryTotals(dives, libraryDives), ...charts, legend);
+  container.append(renderLibraryTotals(dives, libraryDives), ...charts);
 }
