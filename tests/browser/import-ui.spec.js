@@ -698,7 +698,9 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     .click();
   await expect(page.locator("#dive-detail")).toContainText("4 dives selected");
   await expect(page.locator(".marker-cluster.all-selected-dives")).toHaveCount(1);
-  await expect(page.locator("#plot-selection-control")).toBeVisible();
+  await expect(
+    page.locator(".dive-selection-actions > #plot-selection-control"),
+  ).toBeVisible();
   await expect(page.locator("#filter-plot-selection")).toBeChecked();
   await page.locator("#filter-plot-selection").uncheck();
   await expect(page.locator(".dive-row")).toHaveCount(3);
