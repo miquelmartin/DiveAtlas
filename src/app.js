@@ -606,7 +606,6 @@ async function renderSelectedDiveDetails() {
       ["Computer", [dive.computer.manufacturer, dive.computer.model].filter(Boolean).join(" ") || "Unknown"],
       ["Decompression", dive.decompression.model || "Unknown"],
       ["Gradient factors", Number.isFinite(dive.decompression.gfLow) ? `${dive.decompression.gfLow}/${dive.decompression.gfHigh}` : "—"],
-      ["Samples", dive.sampleCount],
     ];
     details.forEach(([term, value]) => {
       const wrapper = document.createElement("div");

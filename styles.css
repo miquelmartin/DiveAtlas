@@ -1530,11 +1530,11 @@ tbody tr:hover {
 }
 
 .donut-decompression {
-  stroke: var(--cp-warning);
+  stroke: var(--cp-decompression);
 }
 
 .donut-no-decompression {
-  stroke: var(--cp-success);
+  stroke: var(--cp-no-decompression);
 }
 
 .donut-unknown {
@@ -1559,6 +1559,7 @@ tbody tr:hover {
 
 .donut-legend {
   display: grid;
+  min-width: 0;
   gap: 0.2rem;
   margin: 0;
   padding: 0;
@@ -1569,23 +1570,27 @@ tbody tr:hover {
 
 .donut-legend li {
   display: flex;
-  align-items: center;
+  min-width: 0;
+  align-items: flex-start;
   gap: 0.25rem;
+  overflow-wrap: anywhere;
 }
 
 .donut-key {
+  flex: 0 0 0.55rem;
   width: 0.55rem;
   height: 0.55rem;
+  margin-top: 0.08rem;
   border-radius: 0.1rem;
   background: currentColor;
 }
 
 .donut-key.donut-decompression {
-  background: var(--cp-warning);
+  background: var(--cp-decompression);
 }
 
 .donut-key.donut-no-decompression {
-  background: var(--cp-success);
+  background: var(--cp-no-decompression);
 }
 
 .donut-key.donut-unknown {
