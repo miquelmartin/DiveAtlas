@@ -350,6 +350,77 @@ function scatterTooltipText(dive) {
   )} min · ${dive.maxDepth.toFixed(1)} m`;
 }
 
+function sumDiveMetric(dives, key) {
+  return dives.reduce(
+    (total, dive) =>
+      Number.isFinite(dive[key]) && dive[key] > 0 ? total + dive[key] : total,
+    0,
+  );
+}
+
+function formatDescent(metres) {
+  if (metres >= 1000) return `${(metres / 1000).toFixed(1)} km`;
+  return metres ? `${metres.toFixed(1)} m` : "0 m";
+}
+
+function formatDuration(seconds) {
+  let totalHours = Math.round((seconds / 3600) * 10) / 10;
+  let days = Math.floor(totalHours / 24);
+  let hours = Math.round((totalHours - days * 24) * 10) / 10;
+  if (hours === 24) {
+    days += 1;
+    hours = 0;
+  }
+  const parts = [];
+  if (days) parts.push(`${days} ${days === 1 ? "day" : "days"}`);
+  if (hours || !days) parts.push(`${hours} ${hours === 1 ? "hour" : "hours"}`);
+  return parts.join(" ");
+}
+
+function renderLibraryTotals(dives, libraryDives) {
+  const section = document.createElement("section");
+  section.className = "library-totals";
+  section.setAttribute("aria-label", "Dive totals");
+  const selectedLabel = dives.length === 1 ? "This dive" : "Selected dives";
+  const definitions = [
+    {
+      title: "Cumulative descent",
+      description: "Sum of the maximum depth recorded for each dive",
+      allValue: formatDescent(sumDiveMetric(libraryDives, "maxDepth")),
+      selectedValue: formatDescent(sumDiveMetric(dives, "maxDepth")),
+    },
+    {
+      title: "Total dive time",
+      description: "Sum of the recorded duration of each dive",
+      allValue: formatDuration(sumDiveMetric(libraryDives, "durationSeconds")),
+      selectedValue: formatDuration(sumDiveMetric(dives, "durationSeconds")),
+    },
+  ];
+  definitions.forEach(({ title, description, allValue, selectedValue }) => {
+    const metric = document.createElement("div");
+    metric.className = "total-metric";
+    metric.title = description;
+    const heading = document.createElement("h3");
+    heading.textContent = title;
+    const values = document.createElement("dl");
+    [
+      ["All dives", allValue],
+      [selectedLabel, selectedValue],
+    ].forEach(([term, value]) => {
+      const item = document.createElement("div");
+      const dt = document.createElement("dt");
+      const dd = document.createElement("dd");
+      dt.textContent = term;
+      dd.textContent = value;
+      item.append(dt, dd);
+      values.append(item);
+    });
+    metric.append(heading, values);
+    section.append(metric);
+  });
+  return section;
+}
+
 function renderDepthDurationScatter(
   dives,
   libraryDives,
@@ -431,11 +502,11 @@ function renderDepthDurationScatter(
     hitArea.addEventListener("pointerleave", hideTooltip);
     hitArea.addEventListener("focus", showTooltip);
     hitArea.addEventListener("blur", hideTooltip);
-    hitArea.addEventListener("click", () => onSelectDives([dive]));
+    hitArea.addEventListener("click", () => onSelectDives([dive], { fitMap: false }));
     hitArea.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
-      onSelectDives([dive]);
+      onSelectDives([dive], { fitMap: false });
     });
     group.append(point, hitArea);
     svg.append(group);
@@ -628,5 +699,5 @@ export function renderSelectionStatistics(
       onSelectDives,
     ),
   );
-  container.append(...charts, legend);
+  container.append(renderLibraryTotals(dives, libraryDives), ...charts, legend);
 }

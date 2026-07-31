@@ -521,7 +521,18 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     0,
   );
   await expect(page.locator("#selection-stats")).toBeVisible();
-  await expect(page.locator("#selection-stats > section")).toHaveCount(8);
+  await expect(page.locator("#selection-stats > section")).toHaveCount(9);
+  await expect(page.locator(".library-totals")).toBeVisible();
+  await expect(page.locator(".library-totals h3")).toHaveText([
+    "Cumulative descent",
+    "Total dive time",
+  ]);
+  await expect(page.locator(".library-totals dt")).toHaveText([
+    "All dives",
+    "Selected dives",
+    "All dives",
+    "Selected dives",
+  ]);
   await expect(page.locator(".scatter-point-all")).toHaveCount(3);
   await expect(page.locator(".scatter-point-selected")).toHaveCount(0);
   await expect(page.locator(".donut-selection-segment")).toHaveCount(0);
@@ -589,6 +600,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     const profileSvg = profileChart.querySelector("svg").getBoundingClientRect();
     const profileStyle = getComputedStyle(profileChart);
     const profileRect = profileChart.getBoundingClientRect();
+    const totalsRect = container.querySelector(".library-totals").getBoundingClientRect();
     const detailRect = document.querySelector("#dive-detail").getBoundingClientRect();
     return {
       background,
@@ -630,6 +642,9 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
       donutHeight: container.querySelector(".dive-type-summary svg").getBoundingClientRect().height,
       plotGap: Number.parseFloat(getComputedStyle(plotGrid).columnGap),
       profileSpansGrid: profileRect.width > monthly.width * 1.8,
+      totalsSpanGrid: totalsRect.width > monthly.width * 1.8,
+      totalsBetweenProfileAndPlots:
+        profileRect.bottom <= totalsRect.top && totalsRect.bottom <= monthly.top,
       detailsAboveProfile: detailRect.bottom <= profileRect.top,
       profileDoesNotOverlapPlots: profileRect.bottom <= monthly.top,
       profileWidthRatio:
@@ -649,7 +664,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   expect(statisticsLayout.profileBackground).toBe(statisticsLayout.background);
   expect(statisticsLayout.overviewColumnsAligned).toBe(true);
   expect(statisticsLayout.legendFits).toBe(true);
-  expect(statisticsLayout.chartCount).toBe(8);
+  expect(statisticsLayout.chartCount).toBe(9);
   expect(statisticsLayout.legendAfterPlots).toBe(true);
   expect(statisticsLayout.histogramWidthRatio).toBeGreaterThan(0.95);
   expect(statisticsLayout.sharedViewBoxes).toBe(true);
@@ -661,6 +676,8 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   expect(statisticsLayout.donutHeight).toBeGreaterThan(80);
   expect(statisticsLayout.plotGap).toBeGreaterThanOrEqual(10);
   expect(statisticsLayout.profileSpansGrid).toBe(true);
+  expect(statisticsLayout.totalsSpanGrid).toBe(true);
+  expect(statisticsLayout.totalsBetweenProfileAndPlots).toBe(true);
   expect(statisticsLayout.detailsAboveProfile).toBe(true);
   expect(statisticsLayout.profileDoesNotOverlapPlots).toBe(true);
   expect(statisticsLayout.profileWidthRatio).toBeGreaterThan(0.98);
@@ -702,6 +719,24 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     page.locator(".dive-selection-actions > #plot-selection-control"),
   ).toBeVisible();
   await expect(page.locator("#filter-plot-selection")).toBeChecked();
+  const mapViewAfterHistogram = await page.locator("#map").evaluate((map) => ({
+    transform: map.querySelector(".leaflet-map-pane").style.transform,
+    tileSources: [...map.querySelectorAll(".leaflet-tile")]
+      .map((tile) => tile.src)
+      .sort(),
+  }));
+  await page.locator(".scatter-hit-area").last().click();
+  await expect(page.locator("#filter-plot-selection")).toBeChecked();
+  await expect(page.locator("#dive-detail dl")).toBeVisible();
+  await expect(page.locator(".dive-row")).toHaveCount(1);
+  await expect(page.locator("#map .dive-map-marker.is-selected")).toHaveCount(1);
+  const mapViewAfterScatter = await page.locator("#map").evaluate((map) => ({
+    transform: map.querySelector(".leaflet-map-pane").style.transform,
+    tileSources: [...map.querySelectorAll(".leaflet-tile")]
+      .map((tile) => tile.src)
+      .sort(),
+  }));
+  expect(mapViewAfterScatter).toEqual(mapViewAfterHistogram);
   await page.locator("#filter-plot-selection").uncheck();
   await expect(page.locator(".dive-row")).toHaveCount(3);
   await page.locator(".donut-segment.donut-decompression").click({
@@ -710,9 +745,6 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator("#dive-detail")).toContainText("3 dives selected");
   await expect(page.locator("#filter-plot-selection")).toBeChecked();
   await page.locator("#filter-plot-selection").uncheck();
-  await page.locator(".scatter-hit-area").last().click();
-  await expect(page.locator("#filter-plot-selection")).toBeChecked();
-  await expect(page.locator("#dive-detail dl")).toBeVisible();
   const firstMonthlyBin = page.locator(".monthly-histogram .histogram-hit-area").first();
   await firstMonthlyBin.hover();
   await expect(page.locator(".monthly-histogram .histogram-tooltip")).toContainText("All dives:");
