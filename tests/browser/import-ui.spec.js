@@ -841,8 +841,12 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     });
     return {
       histogramColors: probes,
+      selectionKeyRadius: getComputedStyle(
+        document.querySelector(".selection-count-key"),
+      ).borderRadius,
       donut: keys.map((key) => ({
         legend: getComputedStyle(key).backgroundColor,
+        radius: getComputedStyle(key).borderRadius,
         segment: getComputedStyle(
           document.querySelector(`.donut-segment.${[...key.classList].find((name) =>
             name.startsWith("donut-") && name !== "donut-key",
@@ -854,6 +858,9 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   expect(donutColors.donut.every(({ legend, segment }) => legend === segment)).toBe(true);
   expect(
     donutColors.donut.every(({ legend }) => !donutColors.histogramColors.includes(legend)),
+  ).toBe(true);
+  expect(
+    donutColors.donut.every(({ radius }) => radius === donutColors.selectionKeyRadius),
   ).toBe(true);
   await expect(page.locator(".donut-selection-segment").first()).toHaveCSS(
     "stroke",
