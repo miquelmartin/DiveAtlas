@@ -511,6 +511,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   );
   await expect(page.locator("#profile-chart .profile-empty")).toHaveCSS("place-items", "center");
   await expect(page.locator("#dive-detail")).toContainText("Unmapped Cove");
+  await expect(page.locator("#dive-detail dl")).not.toContainText("Samples");
   await expect(page.locator("#dive-detail .selection-count-summary")).toHaveText(
     "1 dive selected out of 4",
   );
@@ -647,6 +648,17 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
       distributionBackground: getComputedStyle(distribution).backgroundColor,
       overviewColumnsAligned: Math.abs(diveTypes.width - monthly.width) < 2,
       diveTypeLegendFits: diveTypeLegend.scrollWidth <= diveTypeLegend.clientWidth,
+      diveTypeLegendKeysFit: [...diveTypeLegend.querySelectorAll(".donut-key")].every(
+        (key) => {
+          const keyRect = key.getBoundingClientRect();
+          const legendRect = diveTypeLegend.getBoundingClientRect();
+          return (
+            Math.abs(keyRect.width - keyRect.height) < 0.5 &&
+            keyRect.left >= legendRect.left &&
+            keyRect.right <= legendRect.right
+          );
+        },
+      ),
       chartCount: container.querySelectorAll(":scope > section").length,
       totalValueFontSize: Number.parseFloat(
         getComputedStyle(container.querySelector(".total-metric dd")).fontSize,
@@ -702,6 +714,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   expect(statisticsLayout.profileBackground).toBe(statisticsLayout.background);
   expect(statisticsLayout.overviewColumnsAligned).toBe(true);
   expect(statisticsLayout.diveTypeLegendFits).toBe(true);
+  expect(statisticsLayout.diveTypeLegendKeysFit).toBe(true);
   expect(statisticsLayout.chartCount).toBe(9);
   expect(statisticsLayout.totalValueFontSize).toBeGreaterThanOrEqual(12);
   expect(statisticsLayout.totalValueFontSize).toBeLessThan(16);
@@ -845,7 +858,12 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   expect(percentageAxisMaximums).toHaveLength(2);
   expect(percentageAxisMaximums.every((label) => Number.parseFloat(label) >= 100)).toBe(true);
   const donutColors = await page.locator(".donut-key").evaluateAll((keys) => {
-    const probes = ["--cp-accent", "--cp-selection"].map((variable) => {
+    const probes = [
+      "--cp-accent",
+      "--cp-selection",
+      "--cp-decompression",
+      "--cp-no-decompression",
+    ].map((variable) => {
       const probe = document.createElement("span");
       probe.style.color = `var(${variable})`;
       document.body.append(probe);
@@ -854,7 +872,8 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
       return color;
     });
     return {
-      histogramColors: probes,
+      histogramColors: probes.slice(0, 2),
+      diveTypeColors: probes.slice(2),
       selectionKeyRadius: getComputedStyle(
         document.querySelector(".selection-count-key"),
       ).borderRadius,
@@ -870,6 +889,8 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     };
   });
   expect(donutColors.donut.every(({ legend, segment }) => legend === segment)).toBe(true);
+  expect(donutColors.donut.map(({ legend }) => legend)).toEqual(donutColors.diveTypeColors);
+  expect(new Set(donutColors.diveTypeColors).size).toBe(2);
   expect(
     donutColors.donut.every(({ legend }) => !donutColors.histogramColors.includes(legend)),
   ).toBe(true);
