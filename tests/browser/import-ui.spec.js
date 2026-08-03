@@ -11,6 +11,16 @@ const sampleDives = [
 ];
 const sampleMappings = join(process.cwd(), "samples", "locations.csv");
 
+async function openAppMenu(page) {
+  const button = page.locator("#app-menu-button");
+  await expect(button).toHaveAccessibleName("Open menu");
+  await button.click();
+  await expect(button).toHaveAccessibleName("Close menu");
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator("#app-menu-panel")).toBeVisible();
+  return page.locator("#app-menu-panel");
+}
+
 test.beforeEach(async ({ page }) => {
   await page.route("https://gc.zgo.at/count.js", (route) =>
     route.fulfill({
@@ -35,12 +45,33 @@ async function openProductionShell(page) {
   await expect(page.locator("#dive-selection-status")).toHaveText(
     "No dive files selected.",
   );
-  await expect(page.getByRole("button", { name: "Auto" })).toHaveAttribute(
+  await expect(page.locator("#welcome-dialog")).toBeVisible();
+  await page.getByRole("button", { name: "Let's go!" }).click();
+  const appMenu = await openAppMenu(page);
+  await expect(appMenu.getByRole("button", { name: "Auto" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
-  await expect(page.locator("#welcome-dialog")).toBeVisible();
-  await page.getByRole("button", { name: "Let's go!" }).click();
+  await expect(appMenu.getByRole("button", { name: "Data" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  const menuLayout = await appMenu.evaluate((panel) => {
+    const bounds = panel.getBoundingClientRect();
+    return {
+      groupedControls:
+        panel.querySelector("nav[aria-label='Workspace']") !== null &&
+        panel.querySelector("[role='group'][aria-label='Theme']") !== null,
+      fitsViewport:
+        bounds.left >= 0 &&
+        bounds.right <= document.documentElement.clientWidth &&
+        bounds.top >= 0,
+    };
+  });
+  expect(menuLayout).toEqual({ groupedControls: true, fitsViewport: true });
+  await page.keyboard.press("Escape");
+  await expect(appMenu).toBeHidden();
+  await expect(page.getByRole("button", { name: "Open menu" })).toBeFocused();
   await expect(page.locator(".app-brand img")).toHaveJSProperty("complete", true);
   expect(await page.locator(".app-brand img").evaluate((image) => image.naturalWidth)).toBe(192);
   return errors;
@@ -156,24 +187,30 @@ test("dedicated file pickers show selection, results, and refreshed tables", asy
 
   await page.locator("#dive-files").setInputFiles(malformed);
   await expect(page.locator("#dive-import-results")).toContainText("malformed XML");
-  await page.getByRole("button", { name: "View" }).click();
+  await (await openAppMenu(page)).getByRole("button", { name: "View" }).click();
+  await expect(page.getByRole("button", { name: "Open menu" })).toBeFocused();
   await expect(page.locator(".leaflet-marker-icon")).toHaveCount(1);
-  await page.getByRole("button", { name: "Dark" }).click();
+  await (await openAppMenu(page)).getByRole("button", { name: "Dark" }).click();
+  await expect(page.getByRole("button", { name: "Open menu" })).toBeFocused();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   expect(await page.evaluate(() => localStorage.getItem("diveatlas-theme"))).toBe("dark");
   await page.reload();
   await expect(page.locator("#welcome-dialog")).not.toBeVisible();
-  await expect(page.getByRole("button", { name: "Dark" })).toHaveAttribute(
+  const restoredMenu = await openAppMenu(page);
+  await expect(restoredMenu.getByRole("button", { name: "Dark" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.locator("#view-workspace")).toBeVisible();
-  await expect(page.getByRole("button", { name: "View" })).toHaveAttribute("aria-selected", "true");
+  await expect(restoredMenu.getByRole("button", { name: "View" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await expect(page.locator(".leaflet-marker-icon")).toHaveCount(1);
-  await page.getByRole("button", { name: "Auto" }).click();
+  await restoredMenu.getByRole("button", { name: "Auto" }).click();
   expect(await page.evaluate(() => localStorage.getItem("diveatlas-theme"))).toBeNull();
-  await page.getByRole("button", { name: "Data" }).click();
+  await (await openAppMenu(page)).getByRole("button", { name: "Data" }).click();
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Clear all data" }).click();
   await expect(page.locator("#data-workspace")).toBeVisible();
@@ -228,7 +265,7 @@ test("mobile file selection imports and the three view panels stack", async ({ p
   );
   expect(dataColumns).toBe(1);
 
-  await page.getByRole("button", { name: "View" }).click();
+  await (await openAppMenu(page)).getByRole("button", { name: "View" }).click();
   const panels = await page.locator(".view-dashboard > .dashboard-pane").evaluateAll((items) =>
     items.map((item) => item.getBoundingClientRect()).map(({ top, left, right }) => ({
       top,
@@ -296,7 +333,7 @@ test("coincident dive clusters spiderfy for individual selection", async ({ page
       'Location,Site,Latitude,Longitude\n"Example Island, Test Region",Blue Wall,51.456,-0.556',
     ),
   });
-  await page.getByRole("button", { name: "View" }).click();
+  await (await openAppMenu(page)).getByRole("button", { name: "View" }).click();
   await expect(page.locator(".marker-cluster")).toHaveCount(1);
   const coincidentCluster = page.getByRole("button", { name: "10", exact: true });
   await expect(coincidentCluster).toBeVisible();
@@ -426,7 +463,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await locationToggle.click();
   await expect(locationToggle).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator(".mapping-site-row:visible")).toHaveCount(2);
-  await page.getByRole("button", { name: "View" }).click();
+  await (await openAppMenu(page)).getByRole("button", { name: "View" }).click();
   await expect(page.locator(".marker-cluster")).toHaveCount(1);
   await expect(page.locator(".marker-cluster")).toHaveText("2");
   await page.locator(".marker-cluster").click();

@@ -94,16 +94,34 @@
         <img src="icons/logo-192.png" alt="" width="36" height="36">
         <span>DiveAtlas</span>
       </h1>
-      <div class="header-actions">
-        <div class="theme-control" role="group" aria-label="Theme">
-          <button type="button" data-theme-choice="system" aria-pressed="true">Auto</button>
-          <button type="button" data-theme-choice="light" aria-pressed="false">Light</button>
-          <button type="button" data-theme-choice="dark" aria-pressed="false">Dark</button>
+      <div class="app-menu">
+        <button
+          id="app-menu-button"
+          class="app-menu-button"
+          type="button"
+          aria-expanded="false"
+          aria-controls="app-menu-panel"
+          aria-label="Open menu"
+        >
+          <span aria-hidden="true">☰</span>
+        </button>
+        <div id="app-menu-panel" class="app-menu-panel" hidden>
+          <nav aria-label="Workspace">
+            <p class="app-menu-label">Workspace</p>
+            <div class="workspace-tabs">
+              <button class="tab" type="button" data-workspace="data" aria-controls="data-workspace" aria-pressed="false">Data</button>
+              <button class="tab" type="button" data-workspace="view" aria-controls="view-workspace" aria-pressed="false">View</button>
+            </div>
+          </nav>
+          <fieldset class="theme-menu">
+            <legend>Theme</legend>
+            <div class="theme-control" role="group" aria-label="Theme">
+              <button type="button" data-theme-choice="system" aria-pressed="true">Auto</button>
+              <button type="button" data-theme-choice="light" aria-pressed="false">Light</button>
+              <button type="button" data-theme-choice="dark" aria-pressed="false">Dark</button>
+            </div>
+          </fieldset>
         </div>
-        <nav class="workspace-tabs" aria-label="Workspaces">
-          <button class="tab" type="button" data-workspace="data" aria-controls="data-workspace" aria-selected="false">Data</button>
-          <button class="tab" type="button" data-workspace="view" aria-controls="view-workspace" aria-selected="false">View</button>
-        </nav>
       </div>
     </header>
 

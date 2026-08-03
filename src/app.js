@@ -98,6 +98,8 @@ const elements = Object.fromEntries(
     "selection-empty",
     "profile-chart",
     "map",
+    "app-menu-button",
+    "app-menu-panel",
     "welcome-dialog",
     "close-welcome",
     "accept-welcome",
@@ -111,6 +113,13 @@ function selectedRadio(name) {
   return document.querySelector(`input[name="${name}"]:checked`).value;
 }
 
+function setAppMenuOpen(open, { focusButton = false } = {}) {
+  elements["app-menu-panel"].hidden = !open;
+  elements["app-menu-button"].setAttribute("aria-expanded", String(open));
+  elements["app-menu-button"].setAttribute("aria-label", open ? "Close menu" : "Open menu");
+  if (!open && focusButton) elements["app-menu-button"].focus();
+}
+
 function setWorkspace(name) {
   document.querySelectorAll(".workspace").forEach((workspace) => {
     workspace.hidden = workspace.id !== `${name}-workspace`;
@@ -118,7 +127,7 @@ function setWorkspace(name) {
   document.querySelectorAll("[data-workspace]").forEach((button) => {
     const selected = button.dataset.workspace === name;
     button.classList.toggle("is-active", selected);
-    button.setAttribute("aria-selected", selected);
+    button.setAttribute("aria-pressed", selected);
   });
   document.getElementById("workspace").setAttribute("aria-busy", "false");
   if (name === "view") setTimeout(() => globalThis.dispatchEvent(new Event("resize")), 0);
@@ -868,11 +877,31 @@ function registerEvents() {
     button.addEventListener("click", () => {
       globalThis.diveAtlasTheme?.set(button.dataset.themeChoice);
       updateThemeButtons(button.dataset.themeChoice);
+      setAppMenuOpen(false, { focusButton: true });
     });
   });
-  document.querySelectorAll("[data-workspace]").forEach((button) =>
-    button.addEventListener("click", () => setWorkspace(button.dataset.workspace)),
-  );
+  document.querySelectorAll("[data-workspace]").forEach((button) => {
+    button.addEventListener("click", () => {
+      setWorkspace(button.dataset.workspace);
+      setAppMenuOpen(false, { focusButton: true });
+    });
+  });
+  elements["app-menu-button"].addEventListener("click", () => {
+    setAppMenuOpen(elements["app-menu-panel"].hidden);
+  });
+  document.addEventListener("click", (event) => {
+    if (
+      elements["app-menu-panel"].hidden ||
+      event.target.closest(".app-menu")
+    ) {
+      return;
+    }
+    setAppMenuOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || elements["app-menu-panel"].hidden) return;
+    setAppMenuOpen(false, { focusButton: true });
+  });
   ["close-welcome", "accept-welcome"].forEach((id) => {
     elements[id].addEventListener("click", () => elements["welcome-dialog"].close());
   });
