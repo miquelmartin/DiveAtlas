@@ -699,7 +699,11 @@ function renderView({ updateMap = true, fitMap = false, mapFitDiveIds = null } =
       : `${dives.length} dive${dives.length === 1 ? "" : "s"}`;
   elements["show-outside-map"].disabled = outsideCount === 0;
   elements["show-outside-map"].checked = showOutside;
-  elements["select-map-dives"].disabled = currentMapDives().length === 0;
+  const mapDiveCount = currentMapDives().length;
+  elements["select-map-dives"].disabled = mapDiveCount === 0;
+  elements["select-map-dives"].textContent = `Select ${mapDiveCount} dive${
+    mapDiveCount === 1 ? "" : "s"
+  } in map`;
   elements["select-list-dives"].disabled = dives.length === 0;
   elements["clear-view-dives"].disabled = state.selectedViewDives.size === 0;
   renderSelectionStats();

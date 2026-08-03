@@ -362,7 +362,10 @@ test("coincident dive clusters spiderfy for individual selection", async ({ page
     "aria-pressed",
     "true",
   );
-  await page.getByRole("group", { name: "Select dives" }).getByRole("button", { name: "None" }).click();
+  await page
+    .getByRole("group", { name: "List selection" })
+    .getByRole("button", { name: "Select none" })
+    .click();
   await page.locator("#map").click({ position: { x: 10, y: 10 } });
   await expect(page.locator(".marker-cluster")).toHaveCount(1);
   await page.getByRole("button", { name: "10", exact: true }).focus();
@@ -435,7 +438,10 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     "aria-pressed",
     "true",
   );
-  await page.getByRole("group", { name: "Select dives" }).getByRole("button", { name: "None" }).click();
+  await page
+    .getByRole("group", { name: "List selection" })
+    .getByRole("button", { name: "Select none" })
+    .click();
   await page.locator("#map").click({ position: { x: 10, y: 10 } });
   await expect(page.locator(".marker-cluster")).toHaveCount(1);
   await expect(page.locator(".leaflet-marker-icon:not(.marker-cluster)")).toHaveCount(1);
@@ -464,13 +470,43 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   );
   await expect(page.locator("#view-dive-list")).not.toContainText("UNKNOWN");
   const showOutsideMap = page.getByRole("checkbox", { name: "Show dives outside the map" });
-  const selectionActions = page.getByRole("group", { name: "Select dives" });
+  const selectionActions = page.getByRole("group", { name: "List selection" });
   const resetFilters = page.getByRole("button", { name: "Clear filters" });
-  await expect(page.locator(".dive-control-section legend")).toHaveText(["Filters", "Select"]);
-  await expect(resetFilters).toContainText("Clear filters");
-  const selectionButtonHeight = await selectionActions.getByRole("button", { name: "Map" }).evaluate(
-    (button) => button.getBoundingClientRect().height,
+  await expect(page.locator(".dive-control-section legend")).toHaveText(["Filters"]);
+  await expect(selectionActions.getByRole("button")).toHaveText(["Select all", "Select none"]);
+  await expect(page.locator(".dive-list-toolbar")).toContainText("3 of 4 mapped dives");
+  await expect(page.locator(".dive-list-toolbar .list-selection-actions")).toHaveCount(1);
+  await expect(page.locator(".dive-control-section .list-selection-actions")).toHaveCount(0);
+  await expect(page.locator(".map-stage > #select-map-dives")).toHaveText(
+    "Select 3 dives in map",
   );
+  const selectionControlLayout = await page.locator(".view-dashboard").evaluate((dashboard) => {
+    const toolbar = dashboard.querySelector(".dive-list-toolbar");
+    const listActions = toolbar.querySelector(".list-selection-actions");
+    const mapStage = dashboard.querySelector(".map-stage").getBoundingClientRect();
+    const mapAction = dashboard.querySelector("#select-map-dives").getBoundingClientRect();
+    const zoomControl = dashboard.querySelector(".leaflet-control-zoom").getBoundingClientRect();
+    return {
+      listActionsShareToolbar: listActions.parentElement === toolbar,
+      listToolbarFits: toolbar.scrollWidth <= toolbar.clientWidth,
+      mapActionFits:
+        mapAction.left >= mapStage.left &&
+        mapAction.right <= mapStage.right &&
+        mapAction.top >= mapStage.top &&
+        mapAction.bottom <= mapStage.bottom,
+      mapActionClearsZoom: mapAction.left >= zoomControl.right,
+    };
+  });
+  expect(selectionControlLayout).toEqual({
+    listActionsShareToolbar: true,
+    listToolbarFits: true,
+    mapActionFits: true,
+    mapActionClearsZoom: true,
+  });
+  await expect(resetFilters).toContainText("Clear filters");
+  const selectionButtonHeight = await selectionActions
+    .getByRole("button", { name: "Select all" })
+    .evaluate((button) => button.getBoundingClientRect().height);
   const resetPosition = await resetFilters.evaluate((button) => {
     const buttonBox = button.getBoundingClientRect();
     const filterBox = button.closest("fieldset").getBoundingClientRect();
@@ -517,7 +553,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   );
   await expect(page.locator("#dive-detail > p")).toHaveCount(2);
   await expect(page.locator("#dive-detail")).toContainText("No-decompression");
-  await selectionActions.getByRole("button", { name: "None" }).click();
+  await selectionActions.getByRole("button", { name: "Select none" }).click();
   await showOutsideMap.uncheck();
   await expect(page.locator("#selection-empty")).toHaveText(
     "Select a dive from the list or map.",
@@ -553,7 +589,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     ),
   ).toBe(true);
 
-  await selectionActions.getByRole("button", { name: "All" }).click();
+  await selectionActions.getByRole("button", { name: "Select all" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(3);
   await expect(page.locator(".marker-cluster.all-selected-dives")).toHaveCount(1);
   await expect(page.locator(".dive-map-marker.is-selected")).toHaveCount(1);
@@ -902,18 +938,18 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     histogramColors.expectedSelected,
   );
   await expect(page.locator(".profile-legend")).toHaveCount(0);
-  await selectionActions.getByRole("button", { name: "None" }).click();
+  await selectionActions.getByRole("button", { name: "Select none" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(0);
   await expect(page.locator(".marker-cluster.has-selected-dives")).toHaveCount(0);
   await expect(page.locator(".dive-map-marker.is-selected")).toHaveCount(0);
-  await expect(selectionActions.getByRole("button", { name: "None" })).toBeDisabled();
+  await expect(selectionActions.getByRole("button", { name: "Select none" })).toBeDisabled();
   await page.getByRole("button", { name: /Dive 42,/ }).click();
   await expect(page.locator(".marker-cluster.has-selected-dives")).toHaveCount(1);
   await expect(page.locator(".marker-cluster.all-selected-dives")).toHaveCount(0);
-  await selectionActions.getByRole("button", { name: "None" }).click();
-  await selectionActions.getByRole("button", { name: "Map" }).click();
+  await selectionActions.getByRole("button", { name: "Select none" }).click();
+  await page.getByRole("button", { name: "Select 3 dives in map" }).click();
   await expect(page.locator(".dive-row.is-selected")).toHaveCount(3);
-  await selectionActions.getByRole("button", { name: "None" }).click();
+  await selectionActions.getByRole("button", { name: "Select none" }).click();
   const [mapBounds, markerBounds] = await Promise.all([
     page.locator("#map").boundingBox(),
     page.locator(".dive-map-marker").boundingBox(),
