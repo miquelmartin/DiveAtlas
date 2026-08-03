@@ -27,17 +27,30 @@
         --cp-selection: #c9378f;
         --cp-selection-fg: #ffffff;
         --cp-decompression: #355fbd;
-        --cp-no-decompression: #79a7df;
+        --cp-no-decompression: #6697d0;
         --cp-success: #16856b;
         --cp-danger: #c93756;
-        --cp-warning: #b66a08;
+        --cp-warning: #a85d00;
         --cp-link: #006ea6;
         --cp-shadow: 0 18px 48px rgba(18, 48, 68, 0.14);
+        --cp-map-shadow: rgba(0, 35, 50, 0.45);
+        --cp-map-shadow-strong: rgba(0, 35, 50, 0.7);
+        --cp-cluster-halo: rgba(8, 126, 164, 0.4);
+        --cp-selection-soft: rgba(201, 55, 143, 0.11);
         --cp-overlay: rgba(238, 247, 251, 0.84);
         --cp-panel: rgba(255, 255, 255, 0.9);
         --cp-panel-strong: rgba(255, 255, 255, 0.97);
         --cp-sheen: rgba(255, 255, 255, 0.64);
         --cp-highlight: rgba(8, 126, 164, 0.14);
+        --cp-text-xs: 0.6875rem;
+        --cp-text-sm: 0.75rem;
+        --cp-control-compact: 1.75rem;
+        --cp-radius-sm: 0.25rem;
+        --cp-radius-md: 0.5rem;
+        --cp-space-1: 0.25rem;
+        --cp-space-2: 0.5rem;
+        --cp-space-3: 0.75rem;
+        --cp-space-4: 1rem;
       }
       html[data-theme="dark"] {
         color-scheme: dark;
@@ -63,6 +76,10 @@
         --cp-warning: #f4b95f;
         --cp-link: #7bd6f3;
         --cp-shadow: 0 18px 48px rgba(0, 8, 14, 0.38);
+        --cp-map-shadow: rgba(0, 8, 14, 0.58);
+        --cp-map-shadow-strong: rgba(0, 8, 14, 0.82);
+        --cp-cluster-halo: rgba(81, 196, 232, 0.32);
+        --cp-selection-soft: rgba(255, 133, 203, 0.13);
         --cp-overlay: rgba(7, 28, 42, 0.9);
         --cp-panel: rgba(16, 44, 61, 0.78);
         --cp-panel-strong: rgba(16, 44, 61, 0.97);
@@ -127,21 +144,31 @@
 
     <main id="workspace" aria-busy="true">
       <section id="data-workspace" class="workspace" aria-label="Data workspace" hidden>
-        <div class="section-heading compact-heading">
+        <div class="data-workspace-heading">
+          <div>
+            <p class="section-kicker">Local library</p>
+            <h2>Manage your dive data</h2>
+          </div>
           <p class="privacy-chip">Dive data stays on this device</p>
-          <button id="clear-all-data" class="danger danger-filled" type="button">Clear all data</button>
         </div>
 
-        <section class="card import-card" aria-labelledby="import-heading">
-          <div class="card-heading">
+        <section class="summary-grid" aria-label="Library summary">
+          <article class="metric"><span>Dives</span><strong id="dive-count">0</strong></article>
+          <article class="metric"><span>Mapped</span><strong id="mapped-count">0</strong></article>
+          <article class="metric"><span>Unmatched</span><strong id="unmatched-count">0</strong></article>
+          <article class="metric"><span>Coordinates</span><strong id="mapping-count">0</strong></article>
+        </section>
+
+        <section class="data-section import-section" aria-labelledby="import-heading">
+          <div class="section-heading">
             <div>
-              <h3 id="import-heading">Add data</h3>
+              <h2 id="import-heading">Add data</h2>
               <p>Import dive logs and coordinate mappings through separate, explicit workflows.</p>
             </div>
           </div>
           <div class="import-grid">
-            <section class="import-panel" aria-labelledby="dive-import-heading">
-              <h4 id="dive-import-heading">Import dives</h4>
+            <section class="card import-panel" aria-labelledby="dive-import-heading">
+              <h3 id="dive-import-heading">Import dives</h3>
               <p>Select up to hundreds of `.uddf` files. Import starts immediately and reads them one at a time.</p>
               <div id="dive-drop-zone" class="drop-zone">
                 <strong>Add dive files</strong>
@@ -160,8 +187,8 @@
               <div id="dive-import-results" class="results" aria-live="polite"></div>
             </section>
 
-            <section class="import-panel" aria-labelledby="coordinate-import-heading">
-              <h4 id="coordinate-import-heading">Import coordinates</h4>
+            <section class="card import-panel" aria-labelledby="coordinate-import-heading">
+              <h3 id="coordinate-import-heading">Import coordinates</h3>
               <p>Select one CSV matching the Location/Site coordinate contract. Import starts immediately.</p>
               <div id="coordinate-drop-zone" class="drop-zone">
                 <strong>Add a coordinate CSV</strong>
@@ -173,13 +200,6 @@
               <div id="coordinate-import-results" class="results" aria-live="polite"></div>
             </section>
           </div>
-        </section>
-
-        <section class="summary-grid" aria-label="Library summary">
-          <article class="metric"><span>Dives</span><strong id="dive-count">0</strong></article>
-          <article class="metric"><span>Mapped</span><strong id="mapped-count">0</strong></article>
-          <article class="metric"><span>Unmatched</span><strong id="unmatched-count">0</strong></article>
-          <article class="metric"><span>Coordinates</span><strong id="mapping-count">0</strong></article>
         </section>
 
         <div class="data-table-grid">
@@ -218,7 +238,14 @@
           </section>
         </div>
 
-        <div class="two-column">
+        <section class="data-section maintenance-section" aria-labelledby="maintenance-heading">
+          <div class="section-heading">
+            <div>
+              <h2 id="maintenance-heading">Library maintenance</h2>
+              <p>Resolve missing locations, protect local storage, and keep a portable backup.</p>
+            </div>
+          </div>
+          <div class="maintenance-grid">
           <section class="card" aria-labelledby="unmatched-heading">
             <h3 id="unmatched-heading">Unmatched sites</h3>
             <p>Dives remain fully available when a coordinate row is missing.</p>
@@ -232,29 +259,34 @@
             </dl>
             <button id="request-persistence" type="button">Request persistent storage</button>
             <p class="warning-text">Clearing this site's browser data removes the local library. Keep original UDDF files as your source-of-truth archive.</p>
+            <div class="maintenance-danger">
+              <p><strong>Remove this library</strong><br>Deletes every locally stored dive, profile, mapping, and import record.</p>
+              <button id="clear-all-data" class="danger" type="button">Clear all data</button>
+            </div>
           </section>
-        </div>
 
-        <section class="card" aria-labelledby="backup-heading">
-          <div class="card-heading">
-            <div><h3 id="backup-heading">Backup and restore</h3><p>Download a versioned copy of normalized dives, profiles, mappings, and import history.</p></div>
+            <section class="card maintenance-backup" aria-labelledby="backup-heading">
+              <div class="card-heading">
+                <div><h3 id="backup-heading">Backup and restore</h3><p>Download a versioned copy of normalized dives, profiles, mappings, and import history.</p></div>
+              </div>
+              <div class="button-row">
+                <button id="download-backup" class="primary" type="button">Download backup</button>
+                <input id="backup-file" class="native-file-picker backup-file-picker" type="file" aria-label="Choose a DiveAtlas backup">
+              </div>
+              <fieldset class="inline-options">
+                <legend>Restore behavior</legend>
+                <label><input type="radio" name="restore-mode" value="merge" checked> Merge without overwriting conflicts</label>
+                <label><input type="radio" name="restore-mode" value="replace"> Replace the entire local library</label>
+              </fieldset>
+              <button id="restore-backup" type="button" disabled>Restore selected backup</button>
+              <p id="backup-status" aria-live="polite"></p>
+            </section>
           </div>
-          <div class="button-row">
-            <button id="download-backup" class="primary" type="button">Download backup</button>
-            <input id="backup-file" class="native-file-picker backup-file-picker" type="file" aria-label="Choose a DiveAtlas backup">
-          </div>
-          <fieldset class="inline-options">
-            <legend>Restore behavior</legend>
-            <label><input type="radio" name="restore-mode" value="merge" checked> Merge without overwriting conflicts</label>
-            <label><input type="radio" name="restore-mode" value="replace"> Replace the entire local library</label>
-          </fieldset>
-          <button id="restore-backup" type="button" disabled>Restore selected backup</button>
-          <p id="backup-status" aria-live="polite"></p>
         </section>
 
-        <section class="card privacy-note" aria-labelledby="privacy-heading">
+        <section class="privacy-note" aria-labelledby="privacy-heading">
           <h3 id="privacy-heading">Privacy and network disclosure</h3>
-          <p>DiveAtlas has no accounts, advertising, cookies, upload endpoint, or remote dive storage. Imports, country inference, and backups are processed only on this device. GoatCounter records aggregate, cookie-free visit statistics but never receives dive records or file contents. GitHub Pages may log visitor IP addresses. Esri, OpenStreetMap, and OpenSeaMap receive requests only when their map layers are displayed; those requests expose your IP address and viewed area but never dive records or file contents.</p>
+          <p>Dive records stay in this browser. GoatCounter receives aggregate page views, GitHub Pages may log your IP address, and enabled map providers receive your IP address and viewed area; none receive dive records or file contents.</p>
           <a href="PRIVACY.md">Read the full privacy notice</a>
         </section>
       </section>
@@ -264,8 +296,11 @@
           <section class="dashboard-pane dive-list-pane" aria-label="Filtered dives">
             <div class="dive-list-controls">
               <fieldset class="dive-control-section dive-filter-controls">
-                <legend>Filters</legend>
-                <button id="clear-filters" class="clear-filters-button" type="button"><span aria-hidden="true">×</span> Clear filters</button>
+                <legend class="visually-hidden">Filters</legend>
+                <div class="dive-control-heading">
+                  <span aria-hidden="true">Filters</span>
+                  <button id="clear-filters" class="clear-filters-button" type="button" aria-label="Clear filters"><span aria-hidden="true">×</span> Clear</button>
+                </div>
                 <label class="view-keyword">Keyword <input id="view-search" type="search" placeholder="Site, location, date, number"></label>
                 <div class="view-thresholds">
                   <label>Deeper than <span><input id="min-depth" type="number" min="0" step="1" inputmode="decimal" value="0"> m</span></label>

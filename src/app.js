@@ -565,6 +565,7 @@ async function renderSelectedDiveDetails() {
   setSelectionPaneEmpty(false);
   const locationSummary = dives.length === 1 ? document.createElement("p") : null;
   if (locationSummary) {
+    locationSummary.className = "selected-dive-location";
     locationSummary.textContent = `${dives[0].site}, ${dives[0].location}`;
   }
   const selectionSummary = document.createElement("p");
@@ -725,13 +726,16 @@ function renderView({ updateMap = true, fitMap = false, mapFitDiveIds = null } =
     const button = document.createElement("button");
     button.type = "button";
     button.className = "dive-row";
-    button.classList.toggle("is-outside-map", showOutside && !divesInMapIds.has(dive.id));
+    const outsideMap = showOutside && !divesInMapIds.has(dive.id);
+    button.classList.toggle("is-outside-map", outsideMap);
     const selected = state.selectedViewDives.has(dive.id);
     button.classList.toggle("is-selected", selected);
     button.setAttribute("aria-pressed", selected);
     button.setAttribute(
       "aria-label",
-      `Dive ${dive.number ?? "unknown"}, ${dive.location}, ${dive.site}`,
+      `Dive ${dive.number ?? "unknown"}, ${dive.location}, ${dive.site}${
+        outsideMap ? ", outside the current map view" : ""
+      }`,
     );
     const values = [
       ["dive-cell dive-number", dive.number ?? "—"],
@@ -755,6 +759,12 @@ function renderView({ updateMap = true, fitMap = false, mapFitDiveIds = null } =
     stats.textContent = `${
       dive.dateTime?.slice(0, 10) || "Unknown date"
     } · ${depth} · ${duration}`;
+    if (outsideMap) {
+      const outsideLabel = document.createElement("span");
+      outsideLabel.className = "outside-map-label";
+      outsideLabel.textContent = "Outside map";
+      stats.append(outsideLabel);
+    }
     button.append(stats);
     button.addEventListener("click", () => void toggleViewDives([dive.id]));
     elements["view-dive-list"].append(button);
