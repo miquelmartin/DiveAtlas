@@ -101,6 +101,8 @@ describe("GitHub Pages and offline shell", () => {
     expect(html).toContain("Dive records stay in this browser.");
     expect(styles).toContain("min-height: var(--cp-control-compact)");
     expect(styles).toContain("background: var(--cp-selection-soft)");
+    expect(styles).toContain("scrollbar-color: var(--cp-scrollbar-thumb)");
+    expect(styles).toContain(".profile-pane::-webkit-scrollbar-thumb");
     expect(styles).not.toContain("opacity: 0.42");
     expect(styles).not.toContain("filter: grayscale");
   });

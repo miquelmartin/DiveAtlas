@@ -12,6 +12,23 @@ function histogramTooltipText(label, allCount, selectedCount) {
   return `${label} · All dives: ${allCount} · Selected dives: ${selectedCount}`;
 }
 
+function positionTooltipWithinChart(tooltip, targetX, targetY = null) {
+  const chart = tooltip.parentElement;
+  const inset = 4;
+  tooltip.hidden = false;
+  const halfWidth = tooltip.offsetWidth / 2;
+  const left = Math.max(
+    halfWidth + inset,
+    Math.min(targetX, chart.clientWidth - halfWidth - inset),
+  );
+  tooltip.style.left = `${left}px`;
+  if (targetY === null) return;
+  tooltip.style.top = `${Math.max(
+    tooltip.offsetHeight + inset,
+    Math.min(targetY, chart.clientHeight - inset),
+  )}px`;
+}
+
 function renderLayeredHistogram({
   allBins,
   selectedBins,
@@ -79,8 +96,10 @@ function renderLayeredHistogram({
     hitArea.append(title);
     const showTooltip = () => {
       tooltip.textContent = tooltipText;
-      tooltip.style.left = `${Math.max(10, Math.min(90, ((index + 0.5) / allBins.length) * 100))}%`;
-      tooltip.hidden = false;
+      positionTooltipWithinChart(
+        tooltip,
+        ((index + 0.5) / allBins.length) * tooltip.parentElement.clientWidth,
+      );
     };
     const hideTooltip = () => {
       tooltip.hidden = true;
@@ -502,9 +521,12 @@ function renderDepthDurationScatter(
     hitArea.append(title);
     const showTooltip = () => {
       tooltip.textContent = tooltipText;
-      tooltip.style.left = `${Math.max(10, Math.min(90, (x / 480) * 100))}%`;
-      tooltip.style.top = `${Math.max(18, (y / 150) * 100)}%`;
-      tooltip.hidden = false;
+      const chart = tooltip.parentElement;
+      positionTooltipWithinChart(
+        tooltip,
+        (x / 480) * chart.clientWidth,
+        Math.max(chart.clientHeight * 0.18, (y / 150) * chart.clientHeight),
+      );
     };
     const hideTooltip = () => {
       tooltip.hidden = true;

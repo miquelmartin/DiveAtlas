@@ -211,6 +211,27 @@ test("dedicated file pickers show selection, results, and refreshed tables", asy
   await expect(page.getByRole("button", { name: "Open menu" })).toBeFocused();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   expect(await page.evaluate(() => localStorage.getItem("diveatlas-theme"))).toBe("dark");
+  const scrollbarStyles = await page.locator(".dive-list, .profile-pane").evaluateAll((panels) => {
+    const thumbProbe = document.createElement("span");
+    const trackProbe = document.createElement("span");
+    thumbProbe.style.color = "var(--cp-scrollbar-thumb)";
+    trackProbe.style.color = "var(--cp-scrollbar-track)";
+    document.body.append(thumbProbe, trackProbe);
+    const expected = `${getComputedStyle(thumbProbe).color} ${getComputedStyle(trackProbe).color}`;
+    thumbProbe.remove();
+    trackProbe.remove();
+    return {
+      expected,
+      panels: panels.map((panel) => ({
+        color: getComputedStyle(panel).scrollbarColor,
+        width: getComputedStyle(panel).scrollbarWidth,
+      })),
+    };
+  });
+  expect(scrollbarStyles.panels).toEqual([
+    { color: scrollbarStyles.expected, width: "thin" },
+    { color: scrollbarStyles.expected, width: "thin" },
+  ]);
   await page.reload();
   await expect(page.locator("#welcome-dialog")).not.toBeVisible();
   const restoredMenu = await openAppMenu(page);
@@ -961,6 +982,21 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     "white-space",
     "normal",
   );
+  const monthlyTooltipLayout = await page.locator(".monthly-histogram").evaluate((chart) => {
+    const chartBounds = chart.getBoundingClientRect();
+    const tooltipBounds = chart.querySelector(".histogram-tooltip").getBoundingClientRect();
+    const pane = chart.closest(".profile-pane");
+    return {
+      insideChart:
+        tooltipBounds.left >= chartBounds.left &&
+        tooltipBounds.right <= chartBounds.right,
+      paneHasNoHorizontalOverflow: pane.scrollWidth <= pane.clientWidth,
+    };
+  });
+  expect(monthlyTooltipLayout).toEqual({
+    insideChart: true,
+    paneHasNoHorizontalOverflow: true,
+  });
   for (const chart of await page.locator(".histogram-chart").all()) {
     await expect(chart.locator(".histogram-hit-area").first()).toHaveAttribute(
       "aria-label",
@@ -1079,6 +1115,9 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await expect(page.locator(".chart-tooltip")).toContainText("min");
   await expect(page.locator(".profile-line").first()).toHaveCSS("stroke-width", "1.75px");
   await expect(page.locator(".profile-hover-point")).toBeVisible();
+  expect(
+    await page.locator(".profile-pane").evaluate((pane) => pane.scrollWidth <= pane.clientWidth),
+  ).toBe(true);
 
   const [mapBox, chartBox] = await Promise.all([
     page.locator("#map").boundingBox(),

@@ -1089,6 +1089,40 @@ tbody tr:hover {
   overflow-y: auto;
 }
 
+.dive-list,
+.profile-pane {
+  scrollbar-color: var(--cp-scrollbar-thumb) var(--cp-scrollbar-track);
+  scrollbar-width: thin;
+}
+
+.dive-list::-webkit-scrollbar,
+.profile-pane::-webkit-scrollbar {
+  width: 0.65rem;
+  height: 0.65rem;
+}
+
+.dive-list::-webkit-scrollbar-track,
+.profile-pane::-webkit-scrollbar-track {
+  background: var(--cp-scrollbar-track);
+}
+
+.dive-list::-webkit-scrollbar-thumb,
+.profile-pane::-webkit-scrollbar-thumb {
+  border: 2px solid var(--cp-scrollbar-track);
+  border-radius: 999px;
+  background: var(--cp-scrollbar-thumb);
+}
+
+.dive-list::-webkit-scrollbar-thumb:hover,
+.profile-pane::-webkit-scrollbar-thumb:hover {
+  background: var(--cp-scrollbar-thumb-hover);
+}
+
+.dive-list::-webkit-scrollbar-corner,
+.profile-pane::-webkit-scrollbar-corner {
+  background: var(--cp-scrollbar-track);
+}
+
 .dive-row {
   width: 100%;
   min-height: 2.9rem;
@@ -1379,7 +1413,8 @@ tbody tr:hover {
 
 .profile-pane {
   display: block;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .plots-grid {
