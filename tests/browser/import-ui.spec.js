@@ -165,6 +165,23 @@ test("dedicated file pickers show selection, results, and refreshed tables", asy
   await expect(page.locator("#mapping-count")).toHaveText("2");
   await expect(page.locator("#mapping-table-body")).toContainText("Blue Wall");
   await expect(page.locator("#mapping-table-body")).toContainText("Spain");
+  const dataHierarchy = await page.locator("#data-workspace").evaluate((workspace) => ({
+    metricsBeforeImports: Boolean(
+      workspace.querySelector(".summary-grid").compareDocumentPosition(
+        workspace.querySelector(".import-section"),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ),
+    importSectionIsCard: workspace.querySelector(".import-section").classList.contains("card"),
+    importCards: workspace.querySelectorAll(".import-section > .import-grid > .card").length,
+    clearAllInMaintenance:
+      workspace.querySelector(".maintenance-danger #clear-all-data") !== null,
+  }));
+  expect(dataHierarchy).toEqual({
+    metricsBeforeImports: true,
+    importSectionIsCard: false,
+    importCards: 2,
+    clearAllInMaintenance: true,
+  });
   const dataCardHeadings = await page.locator(".data-table-grid > .card h3").allTextContents();
   expect(dataCardHeadings.indexOf("Known locations")).toBeLessThan(
     dataCardHeadings.indexOf("Imported dives"),
@@ -276,6 +293,17 @@ test("mobile file selection imports and the three view panels stack", async ({ p
   expect(panels[0].top).toBeLessThan(panels[1].top);
   expect(panels[1].top).toBeLessThan(panels[2].top);
   expect(panels.every((panel) => panel.left >= 0 && panel.right <= 390)).toBe(true);
+  const compactControlHeights = await page
+    .locator("#clear-filters, #select-list-dives, #date-range-start")
+    .evaluateAll((controls) => controls.map((control) => control.getBoundingClientRect().height));
+  expect(compactControlHeights.every((height) => height >= 28)).toBe(true);
+
+  await page.setViewportSize({ width: 1024, height: 768 });
+  const tabletPanels = await page.locator(".view-dashboard > .dashboard-pane").evaluateAll(
+    (items) => items.map((item) => item.getBoundingClientRect()),
+  );
+  expect(Math.abs(tabletPanels[0].top - tabletPanels[1].top)).toBeLessThan(2);
+  expect(tabletPanels[2].top).toBeGreaterThan(tabletPanels[0].bottom);
   expect(errors).toEqual([]);
 });
 
@@ -540,7 +568,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     mapActionFits: true,
     mapActionClearsZoom: true,
   });
-  await expect(resetFilters).toContainText("Clear filters");
+  await expect(resetFilters).toContainText("Clear");
   const selectionButtonHeight = await selectionActions
     .getByRole("button", { name: "Select all" })
     .evaluate((button) => button.getBoundingClientRect().height);
@@ -553,7 +581,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
       nearRight: filterBox.right - buttonBox.right < 10,
     };
   });
-  expect(selectionButtonHeight).toBeLessThan(24);
+  expect(selectionButtonHeight).toBeGreaterThanOrEqual(28);
   expect(resetPosition).toEqual({ nearTop: true, nearRight: true });
   await expect(page.locator(".dive-filter-controls #show-outside-map")).toHaveCount(1);
   await expect(page.locator(".dive-control-section:first-child #show-outside-map")).toHaveCount(1);
@@ -571,7 +599,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     };
   });
   expect(filterLayout).toEqual({
-    keywordBorderTop: "0px",
+    keywordBorderTop: "1px",
     keywordBorderBottom: "1px",
     thresholdsInline: true,
   });
@@ -601,6 +629,10 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   );
   await expect(page.locator("#selection-stats")).toBeVisible();
   await expect(page.locator("#selection-stats > section")).toHaveCount(9);
+  await expect(page.locator(".statistics-heading")).toContainText("Dive distributions");
+  await expect(page.locator(".statistics-heading")).toContainText(
+    "Select a bar, segment, or point",
+  );
   await expect(page.locator(".library-totals")).toBeVisible();
   await expect(page.locator(".library-totals h3")).toHaveText([
     "Cumulative descent",
@@ -642,6 +674,18 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
     };
   });
   expect(selectionColor.selected).toBe(selectionColor.expected);
+  const selectedRowColor = await page.locator(".dive-row.is-selected").first().evaluate((row) => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--cp-selection)";
+    document.body.append(probe);
+    const expected = getComputedStyle(probe).color;
+    probe.remove();
+    return {
+      shadow: getComputedStyle(row).boxShadow,
+      expected,
+    };
+  });
+  expect(selectedRowColor.shadow).toContain(selectedRowColor.expected);
   await expect(page.locator("#dive-detail .selection-count-summary")).toHaveText(
     "3 dives selected out of 4",
   );
@@ -1033,7 +1077,7 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   );
   await expect(page.locator(".chart-tooltip")).toContainText("m ·");
   await expect(page.locator(".chart-tooltip")).toContainText("min");
-  await expect(page.locator(".profile-line").first()).toHaveCSS("stroke-width", "1.25px");
+  await expect(page.locator(".profile-line").first()).toHaveCSS("stroke-width", "1.75px");
   await expect(page.locator(".profile-hover-point")).toBeVisible();
 
   const [mapBox, chartBox] = await Promise.all([
@@ -1051,6 +1095,9 @@ test("dense dashboard clusters dives, filters the map, and compares profiles", a
   await showOutsideMap.check();
   await expect(page.locator(".dive-row")).toHaveCount(4);
   await expect(page.locator(".dive-row.is-outside-map")).toHaveCount(4 - visibleDiveCount);
+  await expect(page.locator(".dive-row.is-outside-map").first()).toHaveCSS("opacity", "1");
+  await expect(page.locator(".outside-map-label")).toHaveCount(4 - visibleDiveCount);
+  await expect(page.locator(".outside-map-label").first()).toHaveText("Outside map");
   await expect(showOutsideMap).toBeChecked();
   await expect(page.getByRole("button", { name: "Show all map" })).toHaveCount(0);
   await page.locator("#clear-filters").click();

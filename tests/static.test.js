@@ -88,4 +88,20 @@ describe("GitHub Pages and offline shell", () => {
     expect(readme).toContain("Aggregate, cookie-free page views are measured with GoatCounter");
     expect(readme).not.toContain("DiveAtlas has no analytics");
   });
+
+  it("keeps data maintenance and compact dashboard hierarchy explicit", async () => {
+    const html = await readFile(rootFile("index.html"), "utf8");
+    const styles = await readFile(rootFile("styles.css"), "utf8");
+    expect(html.indexOf('class="summary-grid"')).toBeLessThan(
+      html.indexOf('class="data-section import-section"'),
+    );
+    expect(html).toContain('class="maintenance-danger"');
+    expect(html).toContain('id="clear-all-data" class="danger"');
+    expect(html).not.toContain('id="clear-all-data" class="danger danger-filled"');
+    expect(html).toContain("Dive records stay in this browser.");
+    expect(styles).toContain("min-height: var(--cp-control-compact)");
+    expect(styles).toContain("background: var(--cp-selection-soft)");
+    expect(styles).not.toContain("opacity: 0.42");
+    expect(styles).not.toContain("filter: grayscale");
+  });
 });

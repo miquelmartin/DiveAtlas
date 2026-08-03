@@ -421,6 +421,17 @@ function renderLibraryTotals(dives, libraryDives) {
   return section;
 }
 
+function renderStatisticsHeading() {
+  const heading = document.createElement("div");
+  heading.className = "statistics-heading";
+  const title = document.createElement("h2");
+  title.textContent = "Dive distributions";
+  const instruction = document.createElement("p");
+  instruction.textContent = "Select a bar, segment, or point to focus these dives.";
+  heading.append(title, instruction);
+  return heading;
+}
+
 function renderDepthDurationScatter(
   dives,
   libraryDives,
@@ -687,5 +698,9 @@ export function renderSelectionStatistics(
       onSelectDives,
     ),
   );
-  container.append(renderLibraryTotals(dives, libraryDives), ...charts);
+  container.append(
+    renderLibraryTotals(dives, libraryDives),
+    renderStatisticsHeading(),
+    ...charts,
+  );
 }
